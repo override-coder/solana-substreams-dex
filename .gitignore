@@ -1,0 +1,12 @@
+# Editor specific files
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+
+# Project specific files
+buf.gen.yaml
+
+# Ignore 'target' directory in any subdirectory
+target/
