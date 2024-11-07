@@ -7,7 +7,6 @@ message Output {
 }
 
 message TradeData {
-    string block_date = 1;
     int64 block_time = 2;
     uint64 block_slot = 3;
     string tx_id = 4;
@@ -17,8 +16,8 @@ message TradeData {
     string quote_mint = 8;
     string base_vault = 9;
     string quote_vault = 10;
-    double base_amount = 11;
-    double quote_amount = 12;
+    int64 base_amount = 11;
+    int64 quote_amount = 12;
     bool is_inner_instruction = 13;
     uint32 instruction_index = 14;
     string instruction_type = 15;
@@ -26,5 +25,4 @@ message TradeData {
     string outer_program = 17;
     string inner_program = 18;
     uint64 txn_fee_lamports = 19;
-    int64 signer_lamports_change = 20;
 }

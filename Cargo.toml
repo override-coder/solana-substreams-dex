@@ -15,7 +15,7 @@ bytes = "1.1.0"
 prost = "0.13.3"
 num-bigint = "0.4"
 bs58 = "0.5.0"
-borsh = { version = "1.5.1" }
+borsh = { version = "1.5.1",features = ["std", "unstable__schema"]  }
 chrono = { version = "0.4", features = [ "std" ], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

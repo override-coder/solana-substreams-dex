@@ -9,8 +9,6 @@ pub struct Output {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TradeData {
-    #[prost(string, tag="1")]
-    pub block_date: ::prost::alloc::string::String,
     #[prost(int64, tag="2")]
     pub block_time: i64,
     #[prost(uint64, tag="3")]
@@ -29,10 +27,10 @@ pub struct TradeData {
     pub base_vault: ::prost::alloc::string::String,
     #[prost(string, tag="10")]
     pub quote_vault: ::prost::alloc::string::String,
-    #[prost(double, tag="11")]
-    pub base_amount: f64,
-    #[prost(double, tag="12")]
-    pub quote_amount: f64,
+    #[prost(int64, tag="11")]
+    pub base_amount: i64,
+    #[prost(int64, tag="12")]
+    pub quote_amount: i64,
     #[prost(bool, tag="13")]
     pub is_inner_instruction: bool,
     #[prost(uint32, tag="14")]
@@ -47,7 +45,5 @@ pub struct TradeData {
     pub inner_program: ::prost::alloc::string::String,
     #[prost(uint64, tag="19")]
     pub txn_fee_lamports: u64,
-    #[prost(int64, tag="20")]
-    pub signer_lamports_change: i64,
 }
 // @@protoc_insertion_point(module)
