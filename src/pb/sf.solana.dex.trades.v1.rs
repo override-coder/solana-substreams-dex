@@ -35,25 +35,19 @@ pub struct TradeData {
     pub base_decimals: u32,
     #[prost(uint32, tag="14")]
     pub quote_decimals: u32,
-    #[prost(string, tag="15")]
-    pub price: ::prost::alloc::string::String,
-    #[prost(string, tag="16")]
-    pub wsol_price: ::prost::alloc::string::String,
-    #[prost(string, tag="17")]
-    pub amount_usd: ::prost::alloc::string::String,
-    #[prost(bool, tag="18")]
+    #[prost(bool, tag="15")]
     pub is_inner_instruction: bool,
-    #[prost(uint32, tag="19")]
+    #[prost(uint32, tag="16")]
     pub instruction_index: u32,
-    #[prost(string, tag="20")]
+    #[prost(string, tag="17")]
     pub instruction_type: ::prost::alloc::string::String,
-    #[prost(uint32, tag="21")]
+    #[prost(uint32, tag="18")]
     pub inner_instruxtion_index: u32,
-    #[prost(string, tag="22")]
+    #[prost(string, tag="19")]
     pub outer_program: ::prost::alloc::string::String,
-    #[prost(string, tag="23")]
+    #[prost(string, tag="20")]
     pub inner_program: ::prost::alloc::string::String,
-    #[prost(uint64, tag="24")]
+    #[prost(uint64, tag="21")]
     pub txn_fee_lamports: u64,
 }
 // @@protoc_insertion_point(module)

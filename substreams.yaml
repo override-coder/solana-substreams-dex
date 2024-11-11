@@ -21,22 +21,20 @@ imports:
 network: solana
 
 modules:
-  - name: store_sol_prices
-    kind: store
-    initialBlock: 300562476
-    updatePolicy: set
-    valueType: float64
-    inputs:
-      - map: sol:blocks_without_votes
-
   - name: map_block
     kind: map
     initialBlock: 300562477
     inputs:
       - map: sol:blocks_without_votes
-      - store: store_sol_prices
     output:
       type: proto:sf.solana.dex.trades.v1.Output
+
+  - name: store_sol_prices
+    kind: store
+    updatePolicy: set
+    valueType: float64
+    inputs:
+      - map: map_block
 
   - name: slink_database_out
     kind: map

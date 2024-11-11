@@ -20,14 +20,11 @@ message TradeData {
     int64 quote_amount = 12;
     uint32 base_decimals = 13;
     uint32 quote_decimals = 14;
-    string price = 15;
-    string wsol_price = 16;
-    string amount_usd = 17;
-    bool is_inner_instruction = 18;
-    uint32 instruction_index = 19;
-    string instruction_type = 20;
-    uint32 inner_instruxtion_index = 21;
-    string outer_program = 22;
-    string inner_program = 23;
-    uint64 txn_fee_lamports = 24;
+    bool is_inner_instruction = 15;
+    uint32 instruction_index = 16;
+    string instruction_type = 17;
+    uint32 inner_instruxtion_index = 18;
+    string outer_program = 19;
+    string inner_program = 20;
+    uint64 txn_fee_lamports = 21;
 }

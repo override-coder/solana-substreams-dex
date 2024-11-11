@@ -3,6 +3,7 @@ use borsh::{BorshSerialize, BorshDeserialize};
 use chrono::prelude::*;
 use serde::Deserialize;
 use substreams_solana::pb::sf::solana::r#type::v1::{InnerInstructions, TokenBalance};
+use crate::pb::sf::solana::dex::trades::v1::TradeData;
 
 pub const WSOL_ADDRESS: &str = "So11111111111111111111111111111111111111112";
 pub const USDT_ADDRESS: &str = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
@@ -328,10 +329,12 @@ pub fn is_not_soltoken(token0: &String, token1: &String) -> bool{
    return  token0.to_string() != WSOL_ADDRESS.to_string() && token1.to_string() != WSOL_ADDRESS.to_string()
 }
 
-pub fn get_wsol_price(base_mint: &str, quote_mint: &str,base_amount: i64, quote_amount: i64) -> f64 {
-    if (base_mint == USDT_ADDRESS || base_mint == USDC_ADDRESS) && quote_mint == WSOL_ADDRESS { return  (base_amount as f64 / 1e6) / (quote_amount as f64 / 1e9);
-    } else if base_mint == WSOL_ADDRESS && (quote_mint == USDT_ADDRESS || quote_mint == USDC_ADDRESS) { return (quote_amount as f64 / 1e6) / (base_amount as f64 / 1e9);
-    } else { return 0.0; }
+pub fn get_wsol_price(base_mint: &str, quote_mint: &str,base_amount: i64, quote_amount: i64) -> Option<f64> {
+    match (base_mint, quote_mint) {
+        (USDT_ADDRESS | USDC_ADDRESS, WSOL_ADDRESS) => Some((base_amount as f64 / 1e6) / (quote_amount as f64 / 1e9)),
+        (WSOL_ADDRESS, USDT_ADDRESS | USDC_ADDRESS) => Some((quote_amount as f64 / 1e6) / (base_amount as f64 / 1e9)),
+        _ => None,
+    }
 }
 
 pub fn calculate_price_and_amount_usd(
@@ -342,18 +345,34 @@ pub fn calculate_price_and_amount_usd(
     base_decimals: u32,
     quote_decimals: u32,
     wsol_price: f64,
-) -> (String, String) {
+) -> (f64, f64, f64) {
     let base_amount_normalized = base_amount as f64 / 10f64.powi(base_decimals as i32);
     let quote_amount_normalized = quote_amount as f64 / 10f64.powi(quote_decimals as i32);
     let amount_usd = if base_mint == WSOL_ADDRESS {
-        (base_amount as f64 / 1e9) *  wsol_price
-    } else  {
-        (quote_amount as f64 / 1e9) *  wsol_price
+        base_amount_normalized * wsol_price
+    } else if quote_mint == WSOL_ADDRESS {
+        quote_amount_normalized * wsol_price
+    } else {
+        0.0
     };
     let price = if base_mint == WSOL_ADDRESS {
-        (amount_usd / quote_amount_normalized).to_string()
-    } else  {
-        (amount_usd / base_amount_normalized).to_string()
+        amount_usd / quote_amount_normalized
+    } else if quote_mint == WSOL_ADDRESS {
+        amount_usd / base_amount_normalized
+    } else {
+        0.0
     };
-    (price, amount_usd.to_string())
+    return (price.abs(), amount_usd.abs(),wsol_price.abs())
+}
+
+pub fn find_sol_stable_coin_trade(data: &Vec<TradeData>) -> Option<&TradeData> {
+    data.iter().find(|trade| {
+        let (base_mint, quote_mint) = (&trade.base_mint, &trade.quote_mint);
+
+        let is_usdc_usdt_to_sol = (base_mint == USDT_ADDRESS || base_mint == USDC_ADDRESS) && quote_mint == WSOL_ADDRESS;
+
+        let is_sol_to_usdc_usdt = base_mint == WSOL_ADDRESS && (quote_mint == USDT_ADDRESS || quote_mint == USDC_ADDRESS);
+
+        is_usdc_usdt_to_sol || is_sol_to_usdc_usdt
+    })
 }

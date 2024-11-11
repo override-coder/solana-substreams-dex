@@ -13,16 +13,15 @@ use substreams_solana::pb::sf::solana::r#type::v1::{Block, InnerInstructions, To
 use pb::sf::solana::dex::trades::v1::{Output};
 use crate::pb::sf::solana::dex::trades::v1::TradeData;
 use crate::trade_instruction::TradeInstruction;
-use crate::utils::{WSOL_ADDRESS,get_amt, get_mint, calculate_price_and_amount_usd, get_wsol_price, is_not_soltoken};
+use crate::utils::{WSOL_ADDRESS, get_amt, get_mint, get_wsol_price, is_not_soltoken, find_sol_stable_coin_trade};
 
 #[substreams::handlers::map]
-pub fn map_block(block: Block, store: StoreGetFloat64) -> Result<Output,Error> {
-    process_block(block, store)
+pub fn map_block(block: Block) -> Result<Output,Error> {
+    process_block(block)
 }
 
-fn process_block(block: Block, store: StoreGetFloat64) -> Result<Output,Error> {
+fn process_block(block: Block) -> Result<Output,Error> {
     let slot = block.slot;
-    let parent_slot = block.parent_slot;
     let timestamp = block.block_time.as_ref();
     let mut data: Vec<TradeData> = vec![];
     if timestamp.is_none() {
@@ -74,19 +73,6 @@ fn process_block(block: Block, store: StoreGetFloat64) -> Result<Output,Error> {
 
                 let (amount0,decimals0) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
                 let (amount1,decimals1) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                let mut current_wsol_price = get_wsol_price(&token0, &token1, amount0,amount1);
-                if current_wsol_price == 0.0 {
-                    current_wsol_price = store.get_last(&WSOL_ADDRESS).unwrap_or(0.0);
-                }
-                let (token_price, amount_usd) = calculate_price_and_amount_usd(
-                    &token0,
-                    &token1,
-                    amount0,
-                    amount1,
-                    decimals0,
-                    decimals1,
-                    current_wsol_price,
-                );
 
                 data.push(TradeData {
                     tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
@@ -102,9 +88,6 @@ fn process_block(block: Block, store: StoreGetFloat64) -> Result<Output,Error> {
                     quote_decimals: decimals1,
                     base_vault: td.vault_a,
                     quote_vault: td.vault_b,
-                    price: token_price,
-                    wsol_price: current_wsol_price.to_string(),
-                    amount_usd,
                     is_inner_instruction: false,
                     instruction_index: idx as u32,
                     instruction_type: td_name.clone(),
@@ -148,19 +131,6 @@ fn process_block(block: Block, store: StoreGetFloat64) -> Result<Output,Error> {
                                 if !is_not_soltoken(&token0, &token1) {
                                     let (amount0,decimals0) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
                                     let (amount1,decimals1) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                                    let mut current_wsol_price = get_wsol_price(&token0, &token1, amount0,amount1);
-                                    if current_wsol_price == 0.0 {
-                                        current_wsol_price = store.get_last(&WSOL_ADDRESS).unwrap_or(0.0);
-                                    }
-                                    let (token_price, amount_usd) = calculate_price_and_amount_usd(
-                                        &token0,
-                                        &token1,
-                                        amount0,
-                                        amount1,
-                                        decimals0,
-                                        decimals1,
-                                        current_wsol_price,
-                                    );
 
                                     data.push(TradeData {
                                         tx_id: bs58::encode(&transaction.signatures[0])
@@ -177,9 +147,6 @@ fn process_block(block: Block, store: StoreGetFloat64) -> Result<Output,Error> {
                                         quote_decimals: decimals1,
                                         base_vault: inner_td.vault_a,
                                         quote_vault: inner_td.vault_b,
-                                        price:token_price,
-                                        wsol_price: current_wsol_price.to_string(),
-                                        amount_usd,
                                         is_inner_instruction: true,
                                         instruction_index: idx as u32,
                                         instruction_type: inner_td_name.clone(),
@@ -207,7 +174,6 @@ fn get_trade_instruction(
     post_token_balances: &Vec<TokenBalance>,
 ) -> Option<TradeInstruction> {
     let input_accounts = prepare_input_accounts(account_indices, accounts);
-
 
     let mut result = None;
     match program.as_str() {
@@ -242,7 +208,6 @@ fn prepare_input_accounts(account_indices: &Vec<u8>, accounts: &Vec<String>) -> 
     return instruction_accounts;
 }
 
-
 fn filter_inner_instructions(
     meta_inner_instructions: &Vec<InnerInstructions>,
     idx: u32,
@@ -258,119 +223,17 @@ fn filter_inner_instructions(
 }
 
 #[substreams::handlers::store]
-pub fn store_sol_prices(block: Block,store: StoreSetFloat64)  {
-    let timestamp = block.block_time.as_ref();
-    if timestamp.is_none() {
-        return;
-    }
-    let mut latest_sol_price = 0.0;
-    // iter txs
-    for trx in block.transactions_owned() {
-        // get txs amounts
-        let accounts:Vec<String> = trx.resolved_accounts().iter().map(|account| bs58::encode(account).into_string())
-            .collect();
-        if trx.transaction.is_none() {
-            continue
+pub fn store_sol_prices(out: Output,store: StoreSetFloat64)  {
+    if let Some(trade) = find_sol_stable_coin_trade(&out.data) {
+        if let Some(price) = get_wsol_price(&trade.base_mint,&trade.quote_mint,trade.base_amount,trade.quote_amount) {
+            store.set(0, WSOL_ADDRESS, &price);
         }
-        let transaction = trx.transaction.unwrap();
-        let meta = trx.meta.unwrap();
-        let pre_token_balances = meta.pre_token_balances;
-        let post_token_balances = meta.post_token_balances;
-
-        let message = transaction.message.unwrap();
-
-        for (idx,inst) in message.instructions.into_iter().enumerate() {
-            let inner_instructions: Vec<InnerInstructions> = filter_inner_instructions(&meta.inner_instructions, idx as u32);
-            let program = &accounts[inst.program_id_index as usize];
-            let trade_data = get_trade_instruction(
-                program,
-                inst.data,
-                &inst.accounts,
-                &accounts,
-                &post_token_balances,
-            );
-            if  trade_data.is_some(){
-                let td = trade_data.unwrap();
-                let td_dapp_address = td.program;
-
-                if  td_dapp_address.clone() != "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" {
-                    continue
-                }
-
-                let token0 = get_mint(&td.vault_a, &post_token_balances, &accounts);
-                let mut token1 = get_mint(&td.vault_b, &pre_token_balances, &accounts);
-
-                if (token1.is_empty() || token1 == "") && td_dapp_address.clone() == "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" {
-                    token1 = WSOL_ADDRESS.to_string()
-                }
-
-                // exclude trading pairs that are not sol
-                if is_not_soltoken(&token0,&token1) {
-                    continue
-                }
-
-                let (amount0,_) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                let (amount1,_) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                let current_wsol_price = get_wsol_price(&token0, &token1, amount0,amount1);
-                if current_wsol_price != 0.0 {
-                    latest_sol_price = current_wsol_price;
-                }
-            }
-
-            meta.inner_instructions
-                .iter()
-                .filter(|inner_instruction| inner_instruction.index == idx as u32)
-                .for_each(|inner_instruction| {
-                    inner_instruction.instructions.iter().enumerate().for_each(
-                        |(inner_idx, inner_inst)| {
-                            let inner_program =
-                                &accounts[inner_inst.program_id_index as usize];
-                            let inner_trade_data = get_trade_instruction(
-                                inner_program,
-                                inner_inst.data.clone(),
-                                &inner_inst.accounts,
-                                &accounts,
-                                &post_token_balances,
-                            );
-                            if inner_trade_data.is_some() {
-                                let inner_td = inner_trade_data.unwrap();
-
-                                let inner_td_dapp_address = inner_td.program;
-
-                                if inner_td_dapp_address.clone() == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"{
-                                    let token0 = get_mint(&inner_td.vault_a, &pre_token_balances, &accounts);
-                                    let token1 = get_mint(&inner_td.vault_b, &pre_token_balances, &accounts);
-
-                                    // exclude trading pairs that are not sol
-                                    if !is_not_soltoken(&token0, &token1) {
-                                        let (amount0,_) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                                        let (amount1,_) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                                        let mut current_wsol_price = get_wsol_price(&token0, &token1, amount0,amount1);
-                                        if current_wsol_price != 0.0 {
-                                            latest_sol_price = current_wsol_price;
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                    )
-                });
-        }
-    }
-    if latest_sol_price != 0.0 {
-        store.set(0,WSOL_ADDRESS,&latest_sol_price)
     }
 }
 
 #[substreams::handlers::map]
 pub fn slink_database_out(out: Output,store: StoreGetFloat64) -> Result<DatabaseChanges, Error> {
     let mut tables = substreams_database_change::tables::Tables::new();
-    db::created_trande_database_changes(&mut tables, &out);
-    match store.get_last(WSOL_ADDRESS) {
-        None => {}
-        Some(price) => {
-            tables.create_row("EthPrice","price").set("price", &price.to_string());
-        }
-    }
+    db::created_trande_database_changes(&mut tables, &out, &store);
     return Ok(tables.to_database_changes())
 }
