@@ -19,7 +19,6 @@ pub fn map_block(block: Block, store: StoreGetFloat64) -> Result<Output,substrea
 
 #[substreams::handlers::store]
 pub fn store_sol_prices(block: Block,store: StoreSetFloat64)  {
-    let slot = block.slot;
     let timestamp = block.block_time.as_ref();
     if timestamp.is_none() {
         return;
@@ -70,21 +69,12 @@ pub fn store_sol_prices(block: Block,store: StoreSetFloat64)  {
                     continue
                 }
 
-                let (amount0,decimals0) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                let (amount1,decimals1) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
+                let (amount0,_) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
+                let (amount1,_) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
                 let mut current_wsol_price = get_wsol_price(&token0, &token1, amount0,amount1);
                 if current_wsol_price != 0.0 {
                     latest_sol_price = current_wsol_price;
                 }
-                let (token_price, amount_usd) = calculate_price_and_amount_usd(
-                    &token0,
-                    &token1,
-                    amount0,
-                    amount1,
-                    decimals0,
-                    decimals1,
-                    current_wsol_price,
-                );
             }
 
             meta.inner_instructions
@@ -113,21 +103,12 @@ pub fn store_sol_prices(block: Block,store: StoreSetFloat64)  {
 
                                     // exclude trading pairs that are not sol
                                     if !is_not_soltoken(&token0, &token1) {
-                                        let (amount0,decimals0) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                                        let (amount1,decimals1) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
+                                        let (amount0,_) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
+                                        let (amount1,_) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
                                         let mut current_wsol_price = get_wsol_price(&token0, &token1, amount0,amount1);
                                         if current_wsol_price != 0.0 {
                                             latest_sol_price = current_wsol_price;
                                         }
-                                        let (token_price, amount_usd) = calculate_price_and_amount_usd(
-                                            &token0,
-                                            &token1,
-                                            amount0,
-                                            amount1,
-                                            decimals0,
-                                            decimals1,
-                                            current_wsol_price,
-                                        );
                                     }
                                 }
                             }
