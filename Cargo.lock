@@ -603,6 +603,7 @@ dependencies = [
  "serde",
  "serde_json",
  "substreams",
+ "substreams-database-change",
  "substreams-solana",
  "substreams-solana-program-instructions",
 ]
@@ -628,6 +629,17 @@ dependencies = [
  "prost-types",
  "substreams-macro",
  "thiserror",
+]
+
+[[package]]
+name = "substreams-database-change"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06fe88d25f4c3d56fc2a92583708dc34822ea99fb3f96609f9d684f717974b27"
+dependencies = [
+ "prost",
+ "prost-types",
+ "substreams",
 ]
 
 [[package]]
