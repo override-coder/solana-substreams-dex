@@ -1,9 +1,12 @@
 extern crate chrono;
 use borsh::{BorshSerialize, BorshDeserialize};
 use chrono::prelude::*;
+use serde::Deserialize;
 use substreams_solana::pb::sf::solana::r#type::v1::{InnerInstructions, TokenBalance};
 
-const WSOL: &str = "So1111111111111111111111111111111111111112";
+pub const WSOL_ADDRESS: &str = "So11111111111111111111111111111111111111112";
+pub const USDT_ADDRESS: &str = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
+pub const USDC_ADDRESS: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub struct TransferLayout {
@@ -54,8 +57,9 @@ pub fn get_amt(
     inner_instructions: &Vec<InnerInstructions>,
     accounts: &Vec<String>,
     post_token_balances: &Vec<TokenBalance>,
-) -> i64 {
+) -> (i64,u32) {
     let mut result: i64 = 0;
+    let mut expont: u32 = 9;
 
     let source_transfer_amt = get_token_transfer(
         address,
@@ -78,8 +82,19 @@ pub fn get_amt(
     } else if destination_transfer_amt != 0 {
         result = destination_transfer_amt;
     }
-    
-    result
+
+    if result != 0 {
+        let index = accounts.iter().position(|r| r == address).unwrap();
+        post_token_balances
+            .iter()
+            .filter(|token_balance| token_balance.account_index == index as u32)
+            .for_each(|token_balance: &TokenBalance| {
+                let decimals = token_balance.ui_token_amount.clone().unwrap().decimals;
+                expont = decimals;
+            });
+    }
+
+    (result,expont)
 }
 
 pub fn get_token_transfer(
@@ -307,4 +322,38 @@ fn prepare_input_accounts(account_indices: &Vec<u8>, accounts: &Vec<String>) -> 
         instruction_accounts.push(accounts.as_slice()[el as usize].to_string());
     }
     return instruction_accounts;
+}
+
+pub fn is_not_soltoken(token0: &String, token1: &String) -> bool{
+   return  token0.to_string() != WSOL_ADDRESS.to_string() && token1.to_string() != WSOL_ADDRESS.to_string()
+}
+
+pub fn get_wsol_price(base_mint: &str, quote_mint: &str,base_amount: i64, quote_amount: i64) -> f64 {
+    if (base_mint == USDT_ADDRESS || base_mint == USDC_ADDRESS) && quote_mint == WSOL_ADDRESS { return  (base_amount as f64 / 1e6) / (quote_amount as f64 / 1e9);
+    } else if base_mint == WSOL_ADDRESS && (quote_mint == USDT_ADDRESS || quote_mint == USDC_ADDRESS) { return (quote_amount as f64 / 1e6) / (base_amount as f64 / 1e9);
+    } else { return 0.0; }
+}
+
+pub fn calculate_price_and_amount_usd(
+    base_mint: &str,
+    quote_mint: &str,
+    base_amount: i64,
+    quote_amount: i64,
+    base_decimals: u32,
+    quote_decimals: u32,
+    wsol_price: f64,
+) -> (String, String) {
+    let base_amount_normalized = base_amount as f64 / 10f64.powi(base_decimals as i32);
+    let quote_amount_normalized = quote_amount as f64 / 10f64.powi(quote_decimals as i32);
+    let amount_usd = if base_mint == WSOL_ADDRESS {
+        (base_amount as f64 / 1e9) *  wsol_price
+    } else  {
+        (quote_amount as f64 / 1e9) *  wsol_price
+    };
+    let price = if base_mint == WSOL_ADDRESS {
+        (amount_usd / quote_amount_normalized).to_string()
+    } else  {
+        (amount_usd / base_amount_normalized).to_string()
+    };
+    (price, amount_usd.to_string())
 }

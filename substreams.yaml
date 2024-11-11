@@ -17,12 +17,24 @@ binaries:
 imports:
   sol: https://spkg.io/streamingfast/solana-common-v0.3.0.spkg
 
+network: solana
+
 modules:
-  - name: map_block
-    kind: map
+  - name: store_sol_prices
+    kind: store
+    initialBlock: 300562476
+    updatePolicy: set
+    valueType: float64
     inputs:
       - map: sol:blocks_without_votes
+
+  - name: map_block
+    kind: map
+    initialBlock: 300562477
+    inputs:
+      - map: sol:blocks_without_votes
+      - store: store_sol_prices
     output:
       type: proto:sf.solana.dex.trades.v1.Output
 
-network: solana
+
