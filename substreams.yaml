@@ -21,6 +21,14 @@ imports:
 network: solana
 
 modules:
+  - name: map_pools_created
+    kind: map
+    initialBlock: 300000000
+    inputs:
+      - map: sol:blocks_without_votes
+    output:
+      type: proto:sf.solana.dex.trades.v1.Pools
+
   - name: map_block
     kind: map
     initialBlock: 300562477

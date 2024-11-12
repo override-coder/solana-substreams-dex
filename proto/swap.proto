@@ -28,3 +28,22 @@ message TradeData {
     string inner_program = 20;
     uint64 txn_fee_lamports = 21;
 }
+
+
+
+message Pools {
+    repeated Pool pools =1;
+}
+
+message Pool {
+    string program = 1;
+    string address = 2;
+    uint64 created_at_timestamp = 3;
+    uint64 created_at_block_number = 4;
+    string coin_mint = 5;
+    string pc_mint = 6;
+    string coin_token_account = 7;
+    string pc_amount = 8;
+    bool is_pump_fun = 9;
+    string tx_id = 10;
+}

@@ -10,9 +10,9 @@ use substreams::prelude::*;
 use substreams::store::{ StoreGetFloat64, StoreSetFloat64};
 use substreams_database_change::pb::database::DatabaseChanges;
 use substreams_solana::pb::sf::solana::r#type::v1::{Block, InnerInstructions, TokenBalance};
-use pb::sf::solana::dex::trades::v1::{Output};
-use crate::pb::sf::solana::dex::trades::v1::TradeData;
-use crate::trade_instruction::TradeInstruction;
+use pb::sf::solana::dex::trades::v1::{Output,Pools};
+use crate::pb::sf::solana::dex::trades::v1::{Pool, TradeData};
+use crate::trade_instruction::{CreatePoolInstruction, TradeInstruction};
 use crate::utils::{WSOL_ADDRESS, get_amt, get_mint, get_wsol_price, is_not_soltoken, find_sol_stable_coin_trade};
 
 #[substreams::handlers::map]
@@ -200,6 +200,36 @@ fn get_trade_instruction(
     return result;
 }
 
+fn get_pool_instruction(
+    program: &String,
+    instruction_data: Vec<u8>,
+    account_indices: &Vec<u8>,
+    accounts: &Vec<String>,
+) -> Option<CreatePoolInstruction> {
+    let input_accounts = prepare_input_accounts(account_indices, accounts);
+    let mut result = None;
+    match program.as_str() {
+        // Raydium pool v4
+        "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" => {
+            result =
+                dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_pool_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
+        // Pump.fun
+        "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" => {
+            result =
+                dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_pool_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
+        _ => {}
+    }
+    return result;
+}
+
 fn prepare_input_accounts(account_indices: &Vec<u8>, accounts: &Vec<String>) -> Vec<String> {
     let mut instruction_accounts: Vec<String> = vec![];
     for (index, &el) in account_indices.iter().enumerate() {
@@ -220,6 +250,60 @@ fn filter_inner_instructions(
         }
     }
     return inner_instructions;
+}
+
+#[substreams::handlers::map]
+pub fn map_pools_created(block: Block) -> Result<Pools,Error> {
+    let slot = block.slot;
+    let timestamp = block.block_time.as_ref();
+    let mut data: Vec<Pool> = vec![];
+    if timestamp.is_none() {
+        log::info!("block at slot {} has no timestamp", slot);
+        return Ok(Pools { pools: data });
+    }
+    let timestamp = timestamp.unwrap().timestamp;
+    // iter txs
+    for trx in block.transactions_owned() {
+        // get txs amounts
+        let accounts:Vec<String> = trx.resolved_accounts().iter().map(|account| bs58::encode(account).into_string())
+            .collect();
+        if trx.transaction.is_none() {
+            continue
+        }
+        let transaction = trx.transaction.unwrap();
+        let message = transaction.message.unwrap();
+        for (_,inst) in message.instructions.into_iter().enumerate() {
+            let program = &accounts[inst.program_id_index as usize];
+            let pool_instruction = get_pool_instruction(
+                program,
+                inst.data,
+                &inst.accounts,
+                &accounts,
+            );
+            if  pool_instruction.is_some(){
+                let p = pool_instruction.unwrap();
+                let mut coin_mint = p.coin_mint;
+                if  p.program == "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" && coin_mint == ""  {
+                   coin_mint = WSOL_ADDRESS.to_string()
+               }
+                data.push(Pool{
+                    program: p.program,
+                    address:  p.amm,
+                    created_at_timestamp: timestamp as u64,
+                    created_at_block_number: slot,
+                    coin_mint,
+                    pc_mint: p.pc_mint,
+                    coin_token_account: "".to_string(),
+                    pc_amount: "".to_string(),
+                    is_pump_fun: p.is_pump_fun,
+                    tx_id: bs58::encode(&transaction.signatures[0])
+                        .into_string(),
+                });
+            }
+
+        }
+    }
+    Ok(Pools { pools: data })
 }
 
 #[substreams::handlers::store]

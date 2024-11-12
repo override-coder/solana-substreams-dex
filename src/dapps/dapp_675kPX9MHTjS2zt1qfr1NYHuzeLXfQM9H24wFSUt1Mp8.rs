@@ -1,6 +1,6 @@
 use substreams_solana::pb::sf::solana::r#type::v1::TokenBalance;
 
-use crate::trade_instruction::TradeInstruction;
+use crate::trade_instruction::{CreatePoolInstruction, TradeInstruction};
 
 use crate::utils::get_mint;
 
@@ -79,6 +79,30 @@ fn get_vault_b(
         vault_b_index += 1;
         vault_b = input_accounts.get(vault_b_index).unwrap().to_string();
     }
-
     return vault_b;
+}
+
+
+pub fn parse_pool_instruction(
+    bytes_stream: Vec<u8>,
+    input_accounts: Vec<String>,
+) -> Option<CreatePoolInstruction> {
+    let (disc_bytes, rest) = bytes_stream.split_at(1);
+    let discriminator: u8 = u8::from(disc_bytes[0]);
+    let mut result = None;
+    match discriminator {
+        1 => {
+            result = Some(CreatePoolInstruction {
+                program: String::from("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"),
+                name: String::from("initialize2"),
+                amm: input_accounts.get(4).unwrap().to_string(),
+                coin_mint: input_accounts.get(8).unwrap().to_string(),
+                pc_mint: input_accounts.get(9).unwrap().to_string() ,
+                is_pump_fun: input_accounts.get(17).unwrap().to_string() == "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg",
+                ..Default::default()
+            });
+        }
+        _ => {}
+    }
+    return result;
 }

@@ -50,4 +50,34 @@ pub struct TradeData {
     #[prost(uint64, tag="21")]
     pub txn_fee_lamports: u64,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Pools {
+    #[prost(message, repeated, tag="1")]
+    pub pools: ::prost::alloc::vec::Vec<Pool>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Pool {
+    #[prost(string, tag="1")]
+    pub program: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(uint64, tag="3")]
+    pub created_at_timestamp: u64,
+    #[prost(uint64, tag="4")]
+    pub created_at_block_number: u64,
+    #[prost(string, tag="5")]
+    pub coin_mint: ::prost::alloc::string::String,
+    #[prost(string, tag="6")]
+    pub pc_mint: ::prost::alloc::string::String,
+    #[prost(string, tag="7")]
+    pub coin_token_account: ::prost::alloc::string::String,
+    #[prost(string, tag="8")]
+    pub pc_amount: ::prost::alloc::string::String,
+    #[prost(bool, tag="9")]
+    pub is_pump_fun: bool,
+    #[prost(string, tag="10")]
+    pub tx_id: ::prost::alloc::string::String,
+}
 // @@protoc_insertion_point(module)
