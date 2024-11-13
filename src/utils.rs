@@ -1,7 +1,6 @@
 extern crate chrono;
 use borsh::{BorshSerialize, BorshDeserialize};
 use chrono::prelude::*;
-use serde::Deserialize;
 use substreams_solana::pb::sf::solana::r#type::v1::{InnerInstructions, TokenBalance};
 use crate::pb::sf::solana::dex::trades::v1::TradeData;
 
@@ -231,7 +230,6 @@ pub fn get_token_22_transfer(
 ) -> Option<i64> {
     let mut result = None;
     let mut result_assigned = false;
-
     inner_instructions.iter().for_each(|inner_instruction| {
         inner_instruction
             .instructions

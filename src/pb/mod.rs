@@ -2,6 +2,20 @@
 pub mod sf {
     pub mod solana {
         pub mod dex {
+            pub mod meta {
+                // @@protoc_insertion_point(attribute:sf.solana.dex.meta.v1)
+                pub mod v1 {
+                    include!("sf.solana.dex.meta.v1.rs");
+                    // @@protoc_insertion_point(sf.solana.dex.meta.v1)
+                }
+            }
+            pub mod spl {
+                // @@protoc_insertion_point(attribute:sf.solana.dex.spl.v1)
+                pub mod v1 {
+                    include!("sf.solana.dex.spl.v1.rs");
+                    // @@protoc_insertion_point(sf.solana.dex.spl.v1)
+                }
+            }
             pub mod trades {
                 // @@protoc_insertion_point(attribute:sf.solana.dex.trades.v1)
                 pub mod v1 {
