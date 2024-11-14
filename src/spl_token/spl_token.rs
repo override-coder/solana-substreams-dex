@@ -2,23 +2,27 @@ use substreams_solana::pb::sf::solana::r#type::v1::{Block, TokenBalance};
 use crate::constants;
 use crate::constants::RAYDIUM_AUTHORITY_V4;
 use crate::pb::sf::solana::dex::spl::v1::{Accounts, Arg, SplTokenMeta, SplTokens};
-use crate::spl_token_instruction::{parse_instruction, Instruction};
-use crate::utils::convert_to_date;
+use crate::spl_token::spl_token_instruction::{
+    parse_instruction,
+    Instruction,
+    INSTRUCTION_TYPE_TRANSFER,
+    INSTRUCTION_TYPE_APPROVE,
+    INSTRUCTION_TYPE_TRANSFER_CHECKED,
+    INSTRUCTION_TYPE_APPROVE_CHECKED,
+    INSTRUCTION_TYPE_INITIALIZE_MINT,
+    INSTRUCTION_TYPE_INITIALIZE_MINT2,
+    INSTRUCTION_TYPE_MINT_TO,
+    INSTRUCTION_TYPE_MINT_TO_CHECKED,
+    INSTRUCTION_TYPE_UNKNOWN,
 
-#[derive(Default)]
-pub struct OuterArg {
-    pub instruction_type: String,
-    pub input_accounts: Option<Accounts>,
-    pub arg: Option<Arg>,
-}
+};
+use crate::utils::{convert_to_date, get_b58_string, prepare_input_accounts};
 
 #[substreams::handlers::map]
 fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
     let slot = block.slot;
     let timestamp = block.block_time.as_ref().unwrap().timestamp;
-
     let mut data: Vec<SplTokenMeta> = vec![];
-
     for trx in block.transactions_owned() {
         let accounts:Vec<String> = trx.resolved_accounts().iter().map(|account| bs58::encode(account).into_string())
             .collect();
@@ -26,10 +30,8 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
             let meta = trx.meta.unwrap();
             let msg = transaction.message.unwrap();
             let pre_token_balances = meta.pre_token_balances;
-
             for (idx, inst) in msg.instructions.into_iter().enumerate() {
                 let program = &accounts[inst.program_id_index as usize];
-
                 if program == constants::TOKEN_PROGRAM_ADDRESS {
                     let outer_arg = get_outer_arg(inst.data, &inst.accounts, &accounts);
                     let obj: SplTokenMeta = SplTokenMeta {
@@ -98,7 +100,7 @@ fn handle_mints(
     pre_token_balances: &Vec<TokenBalance>,
     accounts: &Vec<String>,
 ) -> SplTokenMeta {
-    if obj.instruction_type == "Transfer" {
+    if obj.instruction_type == INSTRUCTION_TYPE_TRANSFER {
         if let Some(input_accounts) = &mut obj.input_accounts {
             let index = accounts
                 .iter()
@@ -116,10 +118,10 @@ fn handle_mints(
 }
 
 fn filter_token(mut obj: &SplTokenMeta) -> bool {
-    if obj.instruction_type == "Unknown Instruction"  {
+    if obj.instruction_type == INSTRUCTION_TYPE_UNKNOWN  {
         return true
     }
-    if obj.instruction_type == "InitializeMint" || obj.instruction_type == "InitializeMint2" {
+    if obj.instruction_type == INSTRUCTION_TYPE_INITIALIZE_MINT || obj.instruction_type == INSTRUCTION_TYPE_INITIALIZE_MINT2 {
         if let Some(args) = &obj.args {
             // todo most filter ing
             if args.decimals == Some(0) || args.mint_authority == Some(RAYDIUM_AUTHORITY_V4.to_string()) {
@@ -130,17 +132,24 @@ fn filter_token(mut obj: &SplTokenMeta) -> bool {
     return false;
 }
 
+#[derive(Default)]
+pub struct OuterArg {
+    pub instruction_type: String,
+    pub input_accounts: Option<Accounts>,
+    pub arg: Option<Arg>,
+}
+
 fn get_outer_arg(
     instruction_data: Vec<u8>,
     account_indices: &Vec<u8>,
     accounts: &Vec<String>,
 ) -> OuterArg {
-    let account_args = prepare_account_args(account_indices, accounts);
-    let mut outerArg: OuterArg = OuterArg::default();
+    let account_args = prepare_input_accounts(account_indices, accounts);
+    let mut outer_arg: OuterArg = OuterArg::default();
     let mut arg: Arg = Arg::default();
     let instruction: Instruction = parse_instruction(instruction_data, account_args);
 
-    outerArg.input_accounts = Some(Accounts {
+    outer_arg.input_accounts = Some(Accounts {
         mint: Some(instruction.instruction_accounts.mint),
         rent_sysvar: Some(instruction.instruction_accounts.rent_sysvar),
         account: Some(instruction.instruction_accounts.account),
@@ -159,74 +168,51 @@ fn get_outer_arg(
     });
 
     match instruction.name.as_str() {
-        "InitializeMint" => {
-            outerArg.instruction_type = String::from("InitializeMint");
-            arg.decimals = Some(i32::from(instruction.initializeMintArgs.decimals));
-            arg.mint_authority =
-                get_b58_string(instruction.initializeMintArgs.mint_authority.value);
-            // arg.freeze_authority_option = Some(i32::from(
-            //     instruction.initializeMintArgs.freeze_authority_option,
-            // ));
-            // arg.freeze_authority =
-            //     get_b58_string(instruction.initializeMintArgs.freeze_authority.value);
+        INSTRUCTION_TYPE_TRANSFER => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_TRANSFER);
+            arg.amount = Some(instruction.transfer_args.amount);
         }
-        "Transfer" => {
-            outerArg.instruction_type = String::from("Transfer");
-            arg.amount = Some(instruction.transferArgs.amount);
-        }
-        "Approve" => {
-            outerArg.instruction_type = String::from("Approve");
-            arg.amount = Some(instruction.approveArgs.amount);
-        }
-        "Revoke" => {
-            outerArg.instruction_type = String::from("Revoke");
-        }
-        "MintTo" => {
-            outerArg.instruction_type = String::from("MintTo");
-            arg.amount = Some(instruction.mintToArgs.amount);
+        INSTRUCTION_TYPE_APPROVE => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_APPROVE);
+            arg.amount = Some(instruction.approve_args.amount);
         }
 
-        "TransferChecked" => {
-            outerArg.instruction_type = String::from("TransferChecked");
-            arg.amount = Some(instruction.transferCheckedArgs.amount);
-            arg.decimals = Some(i32::from(instruction.transferCheckedArgs.decimals));
+        INSTRUCTION_TYPE_TRANSFER_CHECKED => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_TRANSFER_CHECKED);
+            arg.amount = Some(instruction.transfer_checked_args.amount);
+            arg.decimals = Some(i32::from(instruction.transfer_checked_args.decimals));
         }
-        "ApproveChecked" => {
-            outerArg.instruction_type = String::from("ApproveChecked");
-            arg.amount = Some(instruction.approveCheckedArgs.amount);
-            arg.decimals = Some(i32::from(instruction.approveCheckedArgs.decimals));
+        INSTRUCTION_TYPE_APPROVE_CHECKED => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_APPROVE_CHECKED);
+            arg.amount = Some(instruction.approve_checked_args.amount);
+            arg.decimals = Some(i32::from(instruction.approve_checked_args.decimals));
         }
-        "MintToChecked" => {
-            outerArg.instruction_type = String::from("MintToChecked");
-            arg.amount = Some(instruction.mintToCheckedArgs.amount);
-            arg.decimals = Some(i32::from(instruction.mintToCheckedArgs.decimals));
-        }
-        "InitializeMint2" => {
-            outerArg.instruction_type = String::from("InitializeMint2");
-            arg.decimals = Some(i32::from(instruction.initializeMint2Args.decimals));
+
+        INSTRUCTION_TYPE_INITIALIZE_MINT => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_INITIALIZE_MINT);
+            arg.decimals = Some(i32::from(instruction.initialize_mint_args.decimals));
             arg.mint_authority =
-                get_b58_string(instruction.initializeMint2Args.mint_authority.value);
-            // arg.freeze_authority =
-            //     get_b58_string(instruction.initializeMint2Args.freeze_authority.value);
+                get_b58_string(instruction.initialize_mint_args.mint_authority.value);
+        }
+        INSTRUCTION_TYPE_INITIALIZE_MINT2 => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_INITIALIZE_MINT2);
+            arg.decimals = Some(i32::from(instruction.initialize_mint2args.decimals));
+            arg.mint_authority =
+                get_b58_string(instruction.initialize_mint2args.mint_authority.value);
+        }
+        INSTRUCTION_TYPE_MINT_TO => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_MINT_TO);
+            arg.amount = Some(instruction.mint_to_args.amount);
+        }
+        INSTRUCTION_TYPE_MINT_TO_CHECKED => {
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_MINT_TO_CHECKED);
+            arg.amount = Some(instruction.mint_to_checked_args.amount);
+            arg.decimals = Some(i32::from(instruction.mint_to_checked_args.decimals));
         }
         _ => {
-            outerArg.instruction_type = String::from("Unknown Instruction");
+            outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_UNKNOWN);
         }
     }
-
-    outerArg.arg = Some(arg);
-
-    return outerArg;
-}
-
-fn get_b58_string(data: [u8; 32]) -> Option<String> {
-    return Some(bs58::encode(data).into_string());
-}
-
-fn prepare_account_args(account_indices: &Vec<u8>, accounts: &Vec<String>) -> Vec<String> {
-    let mut instruction_accounts: Vec<String> = vec![];
-    for (index, &el) in account_indices.iter().enumerate() {
-        instruction_accounts.push(accounts.as_slice()[el as usize].to_string());
-    }
-    return instruction_accounts;
+    outer_arg.arg = Some(arg);
+    return outer_arg;
 }
