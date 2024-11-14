@@ -37,7 +37,7 @@ modules:
     inputs:
       - map: sol:blocks_without_votes
     output:
-      type: proto:sf.solana.dex.spl.v1.Output
+      type: proto:sf.solana.dex.spl.v1.SplTokens
 
   - name: map_token_metadata
     kind: map
@@ -45,7 +45,7 @@ modules:
     inputs:
       - map: sol:blocks_without_votes
     output:
-      type: proto:sf.solana.dex.meta.v1.Output
+      type: proto:sf.solana.dex.meta.v1.TokenMetas
 
   - name: map_swap_block
     kind: map
@@ -53,7 +53,7 @@ modules:
     inputs:
       - map: sol:blocks_without_votes
     output:
-      type: proto:sf.solana.dex.trades.v1.Output
+      type: proto:sf.solana.dex.trades.v1.Swaps
 
   - name: store_sol_prices
     kind: store

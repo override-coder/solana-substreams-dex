@@ -40,9 +40,10 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
         for (idx,inst) in message.instructions.into_iter().enumerate() {
             let inner_instructions: Vec<InnerInstructions> = filter_inner_instructions(&meta.inner_instructions, idx as u32);
             let program = &accounts[inst.program_id_index as usize];
+            let log_message = &meta.log_messages;
             let trade_data = get_trade_instruction(
                 program,
-                inst.data,
+                &inst.data,
                 &inst.accounts,
                 &accounts,
                 &post_token_balances,
@@ -67,6 +68,8 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                 let (amount0,decimals0) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
                 let (amount1,decimals1) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
 
+                let (reserves0, reserves1) = get_reserves(program, &inner_instructions, log_message,&accounts, &token0, &token1);
+
                 data.push(TradeData {
                     tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
                     block_slot: slot,
@@ -77,6 +80,8 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                     quote_mint: token1,
                     base_amount: amount0,
                     quote_amount: amount1,
+                    base_reserves: reserves0 as i64,
+                    quote_reserves: reserves1 as i64,
                     base_decimals: decimals0,
                     quote_decimals: decimals1,
                     base_vault: td.vault_a,
@@ -101,12 +106,11 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                                 &accounts[inner_inst.program_id_index as usize];
                             let inner_trade_data = get_trade_instruction(
                                 inner_program,
-                                inner_inst.data.clone(),
+                                &inner_inst.data.clone(),
                                 &inner_inst.accounts,
                                 &accounts,
                                 &post_token_balances,
                             );
-
                             if inner_trade_data.is_some() {
                                 let inner_td = inner_trade_data.unwrap();
 
@@ -119,6 +123,8 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                                 if (token1.is_empty() || token1 == "") && inner_td_dapp_address.to_string() == "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" {
                                     token1 = WSOL_ADDRESS.to_string();
                                 }
+
+                                let (reserves0,reserves1) = get_reserves(inner_program,&inner_instructions,log_message,&accounts,&token0, &token1);
 
                                 // exclude trading pairs that are not sol
                                 if !is_not_soltoken(&token0, &token1) {
@@ -138,6 +144,8 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                                         quote_amount: amount1,
                                         base_decimals:decimals0,
                                         quote_decimals: decimals1,
+                                        base_reserves: reserves0 as i64,
+                                        quote_reserves: reserves1 as i64,
                                         base_vault: inner_td.vault_a,
                                         quote_vault: inner_td.vault_b,
                                         is_inner_instruction: true,
@@ -159,9 +167,38 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
     Ok(Swaps { data })
 }
 
+fn get_reserves(program: &String, inner_instructions: &Vec<InnerInstructions>, accounts: &Vec<String>,log_messages: &Vec<String> ,tokn0: &String, tokn1: &String) -> (u64,u64) {
+    let (mut reserves0, mut reserves1) = (0,0);
+    match program.as_str() {
+        "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" => {
+            (reserves0,reserves1) =
+                dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_reserves_instruction(
+                    inner_instructions,
+                    log_messages,
+                    accounts,
+                    tokn0,
+                    tokn1,
+                );
+        }
+        // Pump.fun
+        "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" => {
+            (reserves0,reserves1) =
+                dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_reserves_instruction(
+                    inner_instructions,
+                    log_messages,
+                    accounts,
+                    tokn0,
+                    tokn1,
+                );
+        }
+        _ => {}
+    }
+    return (reserves0,reserves1);
+}
+
 fn get_trade_instruction(
     program: &String,
-    instruction_data: Vec<u8>,
+    instruction_data: &Vec<u8>,
     account_indices: &Vec<u8>,
     accounts: &Vec<String>,
     post_token_balances: &Vec<TokenBalance>,
@@ -244,6 +281,7 @@ fn filter_inner_instructions(
     }
     return inner_instructions;
 }
+
 
 #[substreams::handlers::map]
 pub fn map_pools_created(block: Block) -> Result<Pools,Error> {

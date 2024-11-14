@@ -14,17 +14,17 @@ pub struct TransferLayout {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
-struct TradeEvent {
-    mint: [u8; 32],
-    sol_amount: u64,
-    token_amount: u64,
-    is_buy: bool,
-    user: [u8; 32],
-    timestamp: i64,
-    virtual_sol_reserves: u64,
-    virtual_token_reserves: u64,
-    real_sol_reserves: u64,
-    real_token_reserves: u64,
+pub struct TradeEvent {
+    pub mint: [u8; 32],
+    pub sol_amount: u64,
+    pub token_amount: u64,
+    pub is_buy: bool,
+    pub user: [u8; 32],
+    pub timestamp: i64,
+    pub virtual_sol_reserves: u64,
+    pub virtual_token_reserves: u64,
+    pub real_sol_reserves: u64,
+    pub real_token_reserves: u64,
 }
 
 pub fn convert_to_date(ts: i64) -> String {
@@ -314,6 +314,7 @@ pub fn get_token_22_transfer(
 
     result
 }
+
 
 fn prepare_input_accounts(account_indices: &Vec<u8>, accounts: &Vec<String>) -> Vec<String> {
     let mut instruction_accounts: Vec<String> = vec![];

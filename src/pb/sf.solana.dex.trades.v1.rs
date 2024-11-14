@@ -35,19 +35,23 @@ pub struct TradeData {
     pub base_decimals: u32,
     #[prost(uint32, tag="14")]
     pub quote_decimals: u32,
-    #[prost(bool, tag="15")]
+    #[prost(int64, tag="15")]
+    pub base_reserves: i64,
+    #[prost(int64, tag="16")]
+    pub quote_reserves: i64,
+    #[prost(bool, tag="17")]
     pub is_inner_instruction: bool,
-    #[prost(uint32, tag="16")]
-    pub instruction_index: u32,
-    #[prost(string, tag="17")]
-    pub instruction_type: ::prost::alloc::string::String,
     #[prost(uint32, tag="18")]
-    pub inner_instruxtion_index: u32,
+    pub instruction_index: u32,
     #[prost(string, tag="19")]
+    pub instruction_type: ::prost::alloc::string::String,
+    #[prost(uint32, tag="20")]
+    pub inner_instruxtion_index: u32,
+    #[prost(string, tag="21")]
     pub outer_program: ::prost::alloc::string::String,
-    #[prost(string, tag="20")]
+    #[prost(string, tag="22")]
     pub inner_program: ::prost::alloc::string::String,
-    #[prost(uint64, tag="21")]
+    #[prost(uint64, tag="23")]
     pub txn_fee_lamports: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
