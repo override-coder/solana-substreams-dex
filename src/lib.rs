@@ -1,6 +1,4 @@
 mod pb;
-mod trade_instruction;
-mod dapps;
 mod utils;
 mod db;
 mod constants;

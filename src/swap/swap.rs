@@ -3,10 +3,11 @@ use substreams::log;
 use substreams::prelude::*;
 use substreams::store::{StoreSetFloat64};
 use substreams_solana::pb::sf::solana::r#type::v1::{Block, InnerInstructions, TokenBalance};
-use crate::dapps;
+use crate::constants::{PUMP_FUN_AMM_PROGRAM_ADDRESS,RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
-use crate::trade_instruction::{CreatePoolInstruction, TradeInstruction};
-use crate::utils::{find_sol_stable_coin_trade, get_amt, get_mint, get_wsol_price, is_not_soltoken, WSOL_ADDRESS};
+use crate::swap::dapps;
+use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
+use crate::utils::{find_sol_stable_coin_trade, get_amt, get_mint, get_wsol_price, is_not_soltoken, prepare_input_accounts, WSOL_ADDRESS};
 
 #[substreams::handlers::map]
 pub fn map_swap_block(block: Block) -> Result<Swaps,Error> {
@@ -56,7 +57,7 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                 let token0 = get_mint(&td.vault_a, &post_token_balances, &accounts);
                 let mut token1 = get_mint(&td.vault_b, &pre_token_balances, &accounts);
 
-                if (token1.is_empty() || token1 == "") && td_dapp_address.clone() == "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" {
+                if (token1.is_empty() || token1 == "") && td_dapp_address.clone() == PUMP_FUN_AMM_PROGRAM_ADDRESS {
                     token1 = WSOL_ADDRESS.to_string()
                 }
 
@@ -120,7 +121,7 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                                 let token0 = get_mint(&inner_td.vault_a, &pre_token_balances, &accounts);
                                 let mut token1 = get_mint(&inner_td.vault_b, &pre_token_balances, &accounts);
 
-                                if (token1.is_empty() || token1 == "") && inner_td_dapp_address.to_string() == "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" {
+                                if (token1.is_empty() || token1 == "") && inner_td_dapp_address.to_string() == PUMP_FUN_AMM_PROGRAM_ADDRESS {
                                     token1 = WSOL_ADDRESS.to_string();
                                 }
 
@@ -167,10 +168,45 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
     Ok(Swaps { data })
 }
 
+
+fn get_trade_instruction(
+    program: &String,
+    instruction_data: &Vec<u8>,
+    account_indices: &Vec<u8>,
+    accounts: &Vec<String>,
+    post_token_balances: &Vec<TokenBalance>,
+) -> Option<TradeInstruction> {
+    let input_accounts = prepare_input_accounts(account_indices, accounts);
+
+    let mut result = None;
+    match program.as_str() {
+        // Raydium pool v4
+        RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
+            result =
+                dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                    &post_token_balances,
+                    accounts,
+                );
+        }
+        // Pump.fun
+        PUMP_FUN_AMM_PROGRAM_ADDRESS => {
+            result =
+                dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
+        _ => {}
+    }
+    return result;
+}
+
 fn get_reserves(program: &String, inner_instructions: &Vec<InnerInstructions>, accounts: &Vec<String>,log_messages: &Vec<String> ,tokn0: &String, tokn1: &String) -> (u64,u64) {
     let (mut reserves0, mut reserves1) = (0,0);
     match program.as_str() {
-        "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" => {
+        RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
             (reserves0,reserves1) =
                 dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_reserves_instruction(
                     inner_instructions,
@@ -181,7 +217,7 @@ fn get_reserves(program: &String, inner_instructions: &Vec<InnerInstructions>, a
                 );
         }
         // Pump.fun
-        "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" => {
+        PUMP_FUN_AMM_PROGRAM_ADDRESS => {
             (reserves0,reserves1) =
                 dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_reserves_instruction(
                     inner_instructions,
@@ -196,40 +232,6 @@ fn get_reserves(program: &String, inner_instructions: &Vec<InnerInstructions>, a
     return (reserves0,reserves1);
 }
 
-fn get_trade_instruction(
-    program: &String,
-    instruction_data: &Vec<u8>,
-    account_indices: &Vec<u8>,
-    accounts: &Vec<String>,
-    post_token_balances: &Vec<TokenBalance>,
-) -> Option<TradeInstruction> {
-    let input_accounts = prepare_input_accounts(account_indices, accounts);
-
-    let mut result = None;
-    match program.as_str() {
-        // Raydium pool v4
-        "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" => {
-            result =
-                dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                    &post_token_balances,
-                    accounts,
-                );
-        }
-        // Pump.fun
-        "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" => {
-            result =
-                dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
-        }
-        _ => {}
-    }
-    return result;
-}
-
 fn get_pool_instruction(
     program: &String,
     instruction_data: Vec<u8>,
@@ -240,7 +242,7 @@ fn get_pool_instruction(
     let mut result = None;
     match program.as_str() {
         // Raydium pool v4
-        "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" => {
+        RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
             result =
                 dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_pool_instruction(
                     instruction_data,
@@ -248,7 +250,7 @@ fn get_pool_instruction(
                 );
         }
         // Pump.fun
-        "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" => {
+        PUMP_FUN_AMM_PROGRAM_ADDRESS => {
             result =
                 dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_pool_instruction(
                     instruction_data,
@@ -260,18 +262,7 @@ fn get_pool_instruction(
     return result;
 }
 
-fn prepare_input_accounts(account_indices: &Vec<u8>, accounts: &Vec<String>) -> Vec<String> {
-    let mut instruction_accounts: Vec<String> = vec![];
-    for (index, &el) in account_indices.iter().enumerate() {
-        instruction_accounts.push(accounts.as_slice()[el as usize].to_string());
-    }
-    return instruction_accounts;
-}
-
-fn filter_inner_instructions(
-    meta_inner_instructions: &Vec<InnerInstructions>,
-    idx: u32,
-) -> Vec<InnerInstructions> {
+fn filter_inner_instructions(meta_inner_instructions: &Vec<InnerInstructions>, idx: u32, ) -> Vec<InnerInstructions> {
     let mut inner_instructions: Vec<InnerInstructions> = vec![];
     let mut iterator = meta_inner_instructions.iter();
     while let Some(inner_inst) = iterator.next() {
@@ -314,7 +305,7 @@ pub fn map_pools_created(block: Block) -> Result<Pools,Error> {
             if  pool_instruction.is_some(){
                 let p = pool_instruction.unwrap();
                 let mut coin_mint = p.coin_mint;
-                if  p.program == "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" && coin_mint == ""  {
+                if  p.program == PUMP_FUN_AMM_PROGRAM_ADDRESS && coin_mint == ""  {
                    coin_mint = WSOL_ADDRESS.to_string()
                }
                 data.push(Pool{

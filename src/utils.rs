@@ -41,7 +41,6 @@ pub fn get_mint(
 ) -> String {
     let index = accounts.iter().position(|r| r == address).unwrap();
     let mut result: String = String::new();
-
     token_balances
         .iter()
         .filter(|token_balance| token_balance.account_index == index as u32)
@@ -315,7 +314,6 @@ pub fn get_token_22_transfer(
     result
 }
 
-
 pub fn prepare_input_accounts(account_indices: &Vec<u8>, accounts: &Vec<String>) -> Vec<String> {
     let mut instruction_accounts: Vec<String> = vec![];
     for (index, &el) in account_indices.iter().enumerate() {
@@ -324,11 +322,9 @@ pub fn prepare_input_accounts(account_indices: &Vec<u8>, accounts: &Vec<String>)
     return instruction_accounts;
 }
 
-
 pub fn get_b58_string(data: [u8; 32]) -> Option<String> {
     return Some(bs58::encode(data).into_string());
 }
-
 
 pub fn is_not_soltoken(token0: &String, token1: &String) -> bool{
    return  token0.to_string() != WSOL_ADDRESS.to_string() && token1.to_string() != WSOL_ADDRESS.to_string()
