@@ -11,7 +11,6 @@ pub const INSTRUCTION_TYPE_MINT_TO: &str = "MintTo";
 pub const INSTRUCTION_TYPE_MINT_TO_CHECKED: &str = "MintToChecked";
 pub const INSTRUCTION_TYPE_UNKNOWN: &str = "Unknown Instruction";
 
-
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone, Default, Copy)]
 pub struct PubkeyLayout {
     pub value: [u8; 32],

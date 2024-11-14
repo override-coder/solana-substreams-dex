@@ -5,12 +5,7 @@ mod utils;
 mod db;
 mod constants;
 mod spl_token;
-mod spl_token_meta;
-mod prepare_input_accounts;
-mod prepare_arg;
-mod instructions;
 mod swap;
-
 
 use std::io::Error;
 use substreams::prelude::*;

@@ -6,7 +6,7 @@ build:
 
 .PHONY: stream
 stream: build
-	substreams run -e $(ENDPOINT) substreams.yaml map_spl_token -s 301263964 -t +1
+	substreams run -e $(ENDPOINT) substreams.yaml map_token_metadata -s 301263964 -t +100
 
 .PHONY: protogen
 protogen:

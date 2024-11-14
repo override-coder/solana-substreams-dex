@@ -60,7 +60,7 @@ fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_op
         .set("amountUSD", amount_usdt.to_string())
         .set("isInnerInstruction", data.is_inner_instruction)
         .set("instructionIndex", data.instruction_index)
-        .set("instructionType", &data.instruction_type)
+        .set("instruction_type", &data.instruction_type)
         .set("innerInstruxtionIndex", data.inner_instruxtion_index)
         .set("outerProgram", &data.outer_program)
         .set("innerProgram", &data.inner_program)
