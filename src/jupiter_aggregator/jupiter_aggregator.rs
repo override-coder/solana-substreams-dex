@@ -16,6 +16,9 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
             let msg = transaction.message.unwrap();
             for (idx, inst) in msg.instructions.into_iter().enumerate() {
                 let program = &accounts[inst.program_id_index as usize];
+                // if program == JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS && bs58::encode(&transaction.signatures[0]).into_string() == "4fBdpn6b5DgwmjKHaQLqb3PWExnyturBUmQ7yuw1NUZepvcgHywqkYZTJjrj4q6majJScCzdoi6nxYs6yHJz5vk1"{
+                //     panic!("{:?}",inst.data)
+                // }
                 if let Some(out) = parse_instruction(program, inst.data, &inst.accounts, &accounts) {
                     data.push(JupiterTrade {
                         dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
@@ -29,7 +32,7 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                         destination_mint: out.destination_mint,
                         in_amount: out.in_amount,
                         quoted_out_amount: out.quoted_out_amount,
-                        instruction_type: "".to_string(),
+                        instruction_type: out.instruction_types,
                     });
                 }
                 meta.inner_instructions
@@ -52,7 +55,7 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                                         destination_mint: out.destination_mint,
                                         in_amount: out.in_amount,
                                         quoted_out_amount: out.quoted_out_amount,
-                                        instruction_type: "".to_string(),
+                                        instruction_type: out.instruction_types,
                                     });
                                 }
                             },

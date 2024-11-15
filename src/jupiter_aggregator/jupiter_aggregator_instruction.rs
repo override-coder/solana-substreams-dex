@@ -5,6 +5,7 @@ use crate::utils::prepare_input_accounts;
 
 const ROUTE_DISCRIMINATOR: u64 = u64::from_le_bytes([229, 23, 203, 151, 122, 227, 173, 42]);
 const SHARED_ACCOUNTS_ROUTE_DISCRIMINATOR: u64 = u64::from_le_bytes([193, 32, 155, 51, 65, 214, 156, 129]);
+const EXACT_OUT_ROUTE_DISCRIMINATOR: u64 = u64::from_le_bytes([208, 51, 239, 151, 123, 43, 237, 92,]);
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct InstructionRoutePlan {
@@ -17,6 +18,7 @@ pub struct InstructionRoutePlan {
 #[derive(Debug, Default)]
 pub struct Instruction {
     pub signer: String,
+    pub instruction_types: String,
     pub source_token_account: String,
     pub destination_token_account: String,
     pub source_mint: String,
@@ -43,6 +45,7 @@ pub fn parse_instruction(program: &String,bytes_stream: Vec<u8>, account_indices
         ROUTE_DISCRIMINATOR => {
             Some(Instruction {
                 signer: accounts.get(1).unwrap_or(&"".to_string()).to_string(),
+                instruction_types: "Router".to_string(),
                 source_token_account: accounts.get(2).unwrap_or(&"".to_string()).to_string(),
                 destination_token_account: accounts.get(3).unwrap_or(&"".to_string()).to_string(),
                 source_mint: "".to_string(),
@@ -54,10 +57,23 @@ pub fn parse_instruction(program: &String,bytes_stream: Vec<u8>, account_indices
         SHARED_ACCOUNTS_ROUTE_DISCRIMINATOR => {
             Some(Instruction {
                 signer: accounts.get(2).unwrap_or(&"".to_string()).to_string(),
+                instruction_types:"SharedAccountsRoute".to_string(),
                 source_token_account: accounts.get(3).unwrap_or(&"".to_string()).to_string(),
                 destination_token_account: accounts.get(6).unwrap_or(&"".to_string()).to_string(),
                 source_mint: accounts.get(7).unwrap_or(&"".to_string()).to_string(),
                 destination_mint: accounts.get(8).unwrap_or(&"".to_string()).to_string(),
+                in_amount: plan.in_amount.to_string(),
+                quoted_out_amount: plan.quoted_out_amount.to_string(),
+            })
+        }
+        EXACT_OUT_ROUTE_DISCRIMINATOR => {
+            Some(Instruction {
+                signer: accounts.get(1).unwrap_or(&"".to_string()).to_string(),
+                instruction_types:"ExactOutRoute".to_string(),
+                source_token_account: accounts.get(2).unwrap_or(&"".to_string()).to_string(),
+                destination_token_account: accounts.get(3).unwrap_or(&"".to_string()).to_string(),
+                source_mint: accounts.get(5).unwrap_or(&"".to_string()).to_string(),
+                destination_mint: accounts.get(6).unwrap_or(&"".to_string()).to_string(),
                 in_amount: plan.in_amount.to_string(),
                 quoted_out_amount: plan.quoted_out_amount.to_string(),
             })
