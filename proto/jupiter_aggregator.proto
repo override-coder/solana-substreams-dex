@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package sf.solana.dex.jupiter_aggregator.v1;
+
+message JupiterSwaps {
+    repeated JupiterTrade data = 1;
+}
+
+message JupiterTrade {
+    string dapp = 1;
+    int64 block_time = 2;
+    uint64 block_slot = 3;
+    string tx_id = 4;
+    string signer = 5;
+    string source_token_account  = 6;
+    string destination_token_account  = 7;
+    string source_mint  = 8;
+    string destination_mint  = 9;
+    string in_amount = 10;
+    string quoted_out_amount = 11;
+    string instruction_type = 12;
+}

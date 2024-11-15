@@ -1,0 +1,65 @@
+use substreams_solana::pb::sf::solana::r#type::v1::{Block, TokenBalance};
+use crate::constants::JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS;
+use crate::jupiter_aggregator::jupiter_aggregator_instruction::{parse_instruction};
+use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
+
+#[substreams::handlers::map]
+fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::errors::Error> {
+    let slot = block.slot;
+    let timestamp = block.block_time.as_ref().unwrap().timestamp;
+    let mut data: Vec<JupiterTrade> = vec![];
+    for trx in block.transactions_owned() {
+        let accounts: Vec<String> = trx.resolved_accounts().iter().map(|account| bs58::encode(account).into_string())
+            .collect();
+        if let Some(transaction) = trx.transaction {
+            let meta = trx.meta.unwrap();
+            let msg = transaction.message.unwrap();
+            for (idx, inst) in msg.instructions.into_iter().enumerate() {
+                let program = &accounts[inst.program_id_index as usize];
+                if let Some(out) = parse_instruction(program, inst.data, &inst.accounts, &accounts) {
+                    data.push(JupiterTrade {
+                        dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
+                        block_time: timestamp,
+                        block_slot: slot,
+                        tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
+                        signer: out.signer,
+                        source_token_account: out.source_token_account,
+                        destination_token_account: out.destination_token_account,
+                        source_mint: out.source_mint,
+                        destination_mint: out.destination_mint,
+                        in_amount: out.in_amount,
+                        quoted_out_amount: out.quoted_out_amount,
+                        instruction_type: "".to_string(),
+                    });
+                }
+                meta.inner_instructions
+                    .iter()
+                    .filter(|inner_instruction| inner_instruction.index == idx as u32)
+                    .for_each(|inner_instruction| {
+                        inner_instruction.instructions.iter().enumerate().for_each(
+                            |(inner_idx, inner_inst)| {
+                                let inner_program = &accounts[inner_inst.program_id_index as usize];
+                                if let Some(out) = parse_instruction(inner_program, inner_inst.data.clone(), &inst.accounts, &accounts) {
+                                    data.push(JupiterTrade {
+                                        dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
+                                        block_time: timestamp,
+                                        block_slot: slot,
+                                        tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
+                                        signer: out.signer,
+                                        source_token_account: out.source_token_account,
+                                        destination_token_account: out.destination_token_account,
+                                        source_mint: out.source_mint,
+                                        destination_mint: out.destination_mint,
+                                        in_amount: out.in_amount,
+                                        quoted_out_amount: out.quoted_out_amount,
+                                        instruction_type: "".to_string(),
+                                    });
+                                }
+                            },
+                        )
+                    });
+            }
+        }
+    }
+    Ok(JupiterSwaps { data })
+}

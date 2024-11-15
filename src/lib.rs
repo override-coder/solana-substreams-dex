@@ -4,6 +4,7 @@ mod db;
 mod constants;
 mod spl_token;
 mod swap;
+mod jupiter_aggregator;
 
 use std::io::Error;
 use substreams::prelude::*;
