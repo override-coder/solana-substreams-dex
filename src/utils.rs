@@ -2,6 +2,7 @@ extern crate chrono;
 use borsh::{BorshSerialize, BorshDeserialize};
 use chrono::prelude::*;
 use substreams_solana::pb::sf::solana::r#type::v1::{InnerInstructions, TokenBalance};
+use crate::constants::PUMP_FUN_AMM_PROGRAM_ADDRESS;
 use crate::pb::sf::solana::dex::trades::v1::TradeData;
 
 pub const WSOL_ADDRESS: &str = "So11111111111111111111111111111111111111112";
@@ -13,8 +14,8 @@ pub struct TransferLayout {
     amount: u64,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
-pub struct TradeEvent {
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+pub struct PumpEventLayout {
     pub mint: [u8; 32],
     pub sol_amount: u64,
     pub token_amount: u64,
@@ -38,7 +39,12 @@ pub fn get_mint(
     address: &String,
     token_balances: &Vec<TokenBalance>,
     accounts: &Vec<String>,
+    dapp_address: String,
 ) -> String {
+    if dapp_address.eq(PUMP_FUN_AMM_PROGRAM_ADDRESS)
+    {
+        return WSOL_ADDRESS.to_string();
+    }
     let index = accounts.iter().position(|r| r == address).unwrap();
     let mut result: String = String::new();
     token_balances
@@ -56,6 +62,7 @@ pub fn get_amt(
     inner_instructions: &Vec<InnerInstructions>,
     accounts: &Vec<String>,
     post_token_balances: &Vec<TokenBalance>,
+    dapp_address: String,
 ) -> (i64,u32) {
     let mut result: i64 = 0;
     let mut expont: u32 = 9;
@@ -66,6 +73,7 @@ pub fn get_amt(
         inner_instructions,
         accounts,
         "source".to_string(),
+        dapp_address.clone(),
     );
 
     let destination_transfer_amt = get_token_transfer(
@@ -74,6 +82,7 @@ pub fn get_amt(
         inner_instructions,
         accounts,
         "destination".to_string(),
+        dapp_address.clone(),
     );
 
     if source_transfer_amt != 0 {
@@ -102,9 +111,21 @@ pub fn get_token_transfer(
     inner_instructions: &Vec<InnerInstructions>,
     accounts: &Vec<String>,
     account_name_to_check: String,
+    dapp_address: String,
 ) -> i64 {
     let mut result = 0;
     let mut result_assigned = false;
+
+    if dapp_address.eq(PUMP_FUN_AMM_PROGRAM_ADDRESS)
+    {
+        return get_system_program_transfer(
+            address,
+            input_inner_idx,
+            inner_instructions,
+            accounts,
+            account_name_to_check,
+        );
+    }
 
     inner_instructions.iter().for_each(|inner_instruction| {
         inner_instruction
@@ -183,23 +204,6 @@ pub fn get_token_transfer(
                         }
                         _ => {}
                     }
-                }else if inner_program
-                    .as_str()
-                    .eq("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P")  {
-                    let (_, rest) = inner_inst.data.split_at(16);
-                    let mut rest_slice = &mut &rest[..];
-                    match TradeEvent::deserialize(&mut rest_slice) {
-                        Ok(event) => {
-                            if !result_assigned {
-                                result = event.sol_amount as i64;
-                                result_assigned = true;
-                            }
-                        },
-                        Err(e) => {
-                            eprintln!("Failed to deserialize TradeEvent: {}", e);
-                            return;
-                        }
-                    };
                 }
             })
     });
@@ -219,6 +223,7 @@ pub fn get_token_transfer(
 
     result
 }
+
 
 pub fn get_token_22_transfer(
     address: &String,
@@ -311,6 +316,90 @@ pub fn get_token_22_transfer(
             })
     });
 
+    result
+}
+
+
+fn get_system_program_transfer(
+    address: &String,
+    input_inner_idx: u32,
+    inner_instructions: &Vec<InnerInstructions>,
+    accounts: &Vec<String>,
+    account_name_to_check: String,
+) -> i64 {
+    let mut result = 0;
+    let mut result_assigned = false;
+
+    inner_instructions.iter().for_each(|inner_instruction| {
+        inner_instruction
+            .instructions
+            .iter()
+            .enumerate()
+            .for_each(|(inner_idx, inner_inst)| {
+                let inner_program = &accounts[inner_inst.program_id_index as usize];
+                if inner_program
+                    .as_str()
+                    .eq("11111111111111111111111111111111")
+                {
+                    let (discriminator_bytes, rest) = inner_inst.data.split_at(4);
+
+                    let disc_bytes_arr: [u8; 4] = discriminator_bytes.to_vec().try_into().unwrap();
+                    let discriminator: u32 = u32::from_le_bytes(disc_bytes_arr);
+
+                    match discriminator {
+                        2 => {
+                            let input_accounts =
+                                prepare_input_accounts(&inner_inst.accounts, accounts);
+
+                            let source = input_accounts.get(0).unwrap().to_string();
+                            let destination = input_accounts.get(1).unwrap().to_string();
+
+                            let condition = if input_inner_idx > 0 {
+                                inner_idx as u32 > input_inner_idx
+                            } else {
+                                true
+                            };
+
+                            if condition && address.eq(&source) {
+                                let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
+                                if !result_assigned {
+                                    let amount_i64 = data.amount as i64;
+                                    result = -amount_i64;
+                                    result_assigned = true;
+                                }
+                            }
+
+                            if condition && address.eq(&destination) {
+                                let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
+                                if !result_assigned {
+                                    result = data.amount as i64;
+                                    result_assigned = true;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }else if inner_program
+                    .as_str()
+                    .eq(PUMP_FUN_AMM_PROGRAM_ADDRESS)  {
+                    let (_, rest) = inner_inst.data.split_at(16);
+                    let mut rest_slice = &mut &rest[..];
+                    match PumpEventLayout::deserialize(&mut rest_slice) {
+                        Ok(event) => {
+                            if !result_assigned {
+                                result = event.sol_amount as i64;
+                                result_assigned = true;
+
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("Failed to deserialize TradeEvent: {}", e);
+                            return;
+                        }
+                    };
+                }
+            })
+    });
     result
 }
 

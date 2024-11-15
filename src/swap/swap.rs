@@ -54,20 +54,16 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                 let td_name = td.name;
                 let td_dapp_address = td.program;
 
-                let token0 = get_mint(&td.vault_a, &post_token_balances, &accounts);
-                let mut token1 = get_mint(&td.vault_b, &pre_token_balances, &accounts);
-
-                if (token1.is_empty() || token1 == "") && td_dapp_address.clone() == PUMP_FUN_AMM_PROGRAM_ADDRESS {
-                    token1 = WSOL_ADDRESS.to_string()
-                }
+                let token0 = get_mint(&td.vault_a, &post_token_balances, &accounts,td_dapp_address.clone());
+                let token1 = get_mint(&td.vault_b, &pre_token_balances, &accounts, "".to_string());
 
                 // exclude trading pairs that are not sol
                 if is_not_soltoken(&token0,&token1) {
                     continue
                 }
 
-                let (amount0,decimals0) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                let (amount1,decimals1) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
+                let (amount0,decimals0) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances, td_dapp_address.clone());
+                let (amount1,decimals1) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances, "".to_string());
 
                 let (reserves0, reserves1) = get_reserves(program, &inner_instructions, log_message,&accounts, &token0, &token1);
 
@@ -118,19 +114,15 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                                 let inner_td_name = inner_td.name;
                                 let inner_td_dapp_address = inner_td.program;
 
-                                let token0 = get_mint(&inner_td.vault_a, &pre_token_balances, &accounts);
-                                let mut token1 = get_mint(&inner_td.vault_b, &pre_token_balances, &accounts);
-
-                                if (token1.is_empty() || token1 == "") && inner_td_dapp_address.to_string() == PUMP_FUN_AMM_PROGRAM_ADDRESS {
-                                    token1 = WSOL_ADDRESS.to_string();
-                                }
+                                let token0 = get_mint(&inner_td.vault_a, &pre_token_balances, &accounts,inner_td_dapp_address.clone());
+                                let token1 = get_mint(&inner_td.vault_b, &pre_token_balances, &accounts, "".to_string());
 
                                 let (reserves0,reserves1) = get_reserves(inner_program,&inner_instructions,log_message,&accounts,&token0, &token1);
 
                                 // exclude trading pairs that are not sol
                                 if !is_not_soltoken(&token0, &token1) {
-                                    let (amount0,decimals0) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
-                                    let (amount1,decimals1) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances);
+                                    let (amount0,decimals0) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances,inner_td_dapp_address.clone());
+                                    let (amount1,decimals1) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances,"".to_string());
 
                                     data.push(TradeData {
                                         tx_id: bs58::encode(&transaction.signatures[0])
