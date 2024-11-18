@@ -6,7 +6,7 @@ build:
 
 .PHONY: stream
 stream: build
-	substreams run -e $(ENDPOINT) substreams.yaml  map_jupiter_aggregator -s 301514632 -t +1
+	substreams run -e $(ENDPOINT) substreams.yaml slink_database_out -s 302057397 -t +1
 
 .PHONY: protogen
 protogen:
