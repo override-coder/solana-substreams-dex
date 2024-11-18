@@ -2,7 +2,7 @@ use substreams_solana::pb::sf::solana::r#type::v1::{Block, TokenBalance};
 use crate::constants::JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS;
 use crate::jupiter_aggregator::jupiter_aggregator_instruction::{parse_instruction};
 use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
-use crate::utils::is_not_soltoken;
+use crate::utils::{get_decimals, is_not_soltoken};
 
 #[substreams::handlers::map]
 fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::errors::Error> {
@@ -15,6 +15,9 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
         if let Some(transaction) = trx.transaction {
             let meta = trx.meta.unwrap();
             let msg = transaction.message.unwrap();
+
+            let post_token_balances = meta.post_token_balances;
+
             for (idx, inst) in msg.instructions.into_iter().enumerate() {
                 let program = &accounts[inst.program_id_index as usize];
                 // if program == JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS && bs58::encode(&transaction.signatures[0]).into_string() == "4fBdpn6b5DgwmjKHaQLqb3PWExnyturBUmQ7yuw1NUZepvcgHywqkYZTJjrj4q6majJScCzdoi6nxYs6yHJz5vk1"{
@@ -24,6 +27,9 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                     if is_not_soltoken(&out.source_mint,&out.destination_mint){
                             continue
                     }
+
+                    let (in_decimals,quoted_decimals) = get_decimals(&out.source_mint,&out.destination_mint, &post_token_balances);
+
                     data.push(JupiterTrade {
                         dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
                         block_time: timestamp,
@@ -36,6 +42,8 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                         destination_mint: out.destination_mint,
                         in_amount: out.in_amount,
                         quoted_out_amount: out.quoted_out_amount,
+                        in_decimals,
+                        quoted_decimals,
                         instruction_type: out.instruction_types,
                     });
                 }
@@ -48,6 +56,9 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                                 let inner_program = &accounts[inner_inst.program_id_index as usize];
                                 if let Some(out) = parse_instruction(inner_program, inner_inst.data.clone(), &inst.accounts, &accounts) {
                                     if !is_not_soltoken(&out.source_mint,&out.destination_mint){
+
+                                        let (in_decimals,quoted_decimals) = get_decimals(&out.source_mint,&out.destination_mint, &post_token_balances);
+
                                         data.push(JupiterTrade {
                                             dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
                                             block_time: timestamp,
@@ -60,6 +71,8 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                                             destination_mint: out.destination_mint,
                                             in_amount: out.in_amount,
                                             quoted_out_amount: out.quoted_out_amount,
+                                            in_decimals,
+                                            quoted_decimals,
                                             instruction_type: out.instruction_types,
                                         });
                                     }

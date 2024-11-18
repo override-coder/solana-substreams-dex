@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use substreams::prelude::StoreGetFloat64;
 use substreams::store::StoreGet;
 use substreams_database_change::tables::Tables;
-use crate::constants::PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS;
+use crate::constants::{PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS, TOKEN_PROGRAM_ADDRESS};
 use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
 use crate::pb::sf::solana::dex::meta::v1::{TokenMetadataMeta, TokenMetas};
-use crate::pb::sf::solana::dex::spl::v1::{SplTokenMeta, SplTokens};
+use crate::pb::sf::solana::dex::spl::v1::{Accounts, Arg, SplTokenMeta, SplTokens};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::utils::{calculate_price_and_amount_usd, WSOL_ADDRESS};
 
@@ -74,12 +74,12 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
         meta_map.insert(token_meta.tx_id.clone(), token_meta.clone());
     }
     let mut token_map: HashMap<String, Token> = HashMap::new();
-    for (_, t) in tokens.data.iter().enumerate() {
+    for (index, t) in tokens.data.iter().enumerate() {
         if t.instruction_type == "InitializeMint2" || t.instruction_type == "InitializeMint" {
             let meta = meta_map.get(&t.tx_id);
             parse_token_meta(t.clone(), meta, &mut token_map);
         }
-        if t.instruction_type == "MintTo" {
+        if t.instruction_type == "MintTo" || t.instruction_type == "MintToChecked" {
             if let Some(account) = &t.input_accounts {
                 if let Some(m) = &account.mint{
                     if let Some(token) = token_map.get_mut(m) {
@@ -92,10 +92,47 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
                 }
             }
         }
+        if t.instruction_type == "Transfer" || t.instruction_type == "TransferChecked" {
+           if t.outer_program == TOKEN_PROGRAM_ADDRESS.to_string() {
+                create_transfer(tables, t,index)
+            }
+
+        }
     }
     for (_, value) in &token_map {
         create_token(tables,value);
     }
+}
+
+fn create_transfer(tables: &mut Tables, token: &SplTokenMeta, index: usize) {
+    let (mint,signer,source,destination) = match &token.input_accounts  {
+        Some(account) => {
+            (account.mint.clone().unwrap_or("".to_string()),
+             account.owner.clone().unwrap_or("".to_string()),
+             account.source.clone().unwrap_or("".to_string()),
+             account.destination.clone().unwrap_or("".to_string()),
+            )
+        }
+        None => ("".to_string(),"".to_string(),"".to_string(),"".to_string()),
+    };
+    let (amount , decimals) = match &token.args {
+        Some(arg) => {
+            (arg.amount.unwrap_or(0),arg.decimals.unwrap_or(9))
+        }
+        None => {
+            (0,0)
+        }
+    };
+    tables.create_row("transfer", format!("{}-{}", &token.tx_id, index))
+        .set("blockSlot", token.block_slot)
+        .set("blockTime", token.block_time)
+        .set("txId", &token.tx_id)
+        .set("token",mint)
+        .set("signer",signer)
+        .set("source",source)
+        .set("destination",destination)
+        .set("amount",amount.to_string())
+        .set("decimals",decimals.to_string());
 }
 
 fn create_token(tables: &mut Tables, token: &Token) {
@@ -105,8 +142,8 @@ fn create_token(tables: &mut Tables, token: &Token) {
         .set("name", &token.name)
         .set("symbol", &token.symbol)
         .set("decimals", token.decimals)
-        .set("total_supply", &token.total_supply)
-        .set("is_pump_fun", token.is_pump_fun);
+        .set("totalSupply", &token.total_supply)
+        .set("isPumpFun", token.is_pump_fun);
 }
 
 fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>, token_map: &mut HashMap<String, Token>)  {
@@ -172,11 +209,11 @@ fn create_pool(tables: &mut Tables, pool: &Pool) {
         .set("createBlockSlot", pool.created_at_block_number)
         .set("createBlockTime", pool.created_at_timestamp)
         .set("txId", &pool.tx_id)
-        .set("pool_id", &pool.address)
+        .set("poolAddress", &pool.address)
         .set("program", &pool.program)
-        .set("coin_mint", &pool.coin_mint)
-        .set("pc_mint", &pool.pc_mint)
-        .set("is_pump_fun", pool.is_pump_fun);
+        .set("coinMint", &pool.coin_mint)
+        .set("pcMint", &pool.pc_mint)
+        .set("isPumpFun", pool.is_pump_fun);
 }
 
 pub(crate) fn create_jupiter_swap_database_changes(tables: &mut Tables, swaps: &JupiterSwaps, store: &StoreGetFloat64) {
@@ -187,18 +224,35 @@ pub(crate) fn create_jupiter_swap_database_changes(tables: &mut Tables, swaps: &
 }
 
 fn create_jupiter_trade(tables: &mut Tables,j: &JupiterTrade,index:u32, wsol_price_option: Option<f64>) {
-    let wol_price = wsol_price_option.unwrap_or(0.0);
+    let (token_price, amount_usdt, wsol_price) = match wsol_price_option {
+        Some(wsol_price) => {
+            calculate_price_and_amount_usd(
+                &j.source_mint,
+                &j.destination_mint,
+                j.in_amount.parse().unwrap_or(0),
+                j.quoted_out_amount.parse().unwrap_or(0),
+                j.in_decimals,
+                j.quoted_decimals,
+                wsol_price.abs(),
+            )
+        }
+        None => (0.0, 0.0, 0.0),
+    };
     tables.create_row("jupiter", format!("{}-{}", &j.tx_id, index))
         .set("blockSlot", j.block_slot)
         .set("blockTime", j.block_time)
         .set("txId", &j.tx_id)
         .set("signer", &j.signer)
-        .set("source_token_account", &j.source_token_account)
-        .set("destination_token_account", &j.destination_token_account)
-        .set("source_mint", &j.source_mint)
-        .set("destination_mint", &j.destination_mint)
-        .set("in_amount", &j.in_amount)
-        .set("wol_price",wol_price.to_string())
-        .set("quoted_out_amount",&j.quoted_out_amount)
-        .set("instruction_type", &j.instruction_type);
+        .set("sourceTokenAccount", &j.source_token_account)
+        .set("destinationTokenAccount", &j.destination_token_account)
+        .set("sourceMint", &j.source_mint)
+        .set("destinationMint", &j.destination_mint)
+        .set("inAmount", &j.in_amount)
+        .set("quotedOutAmount",&j.quoted_out_amount)
+        .set("baseDecimals", j.in_decimals)
+        .set("quoteDecimals", j.quoted_decimals)
+        .set("price", token_price.to_string())
+        .set("wsolPrice", wsol_price.to_string())
+        .set("amountUSD", amount_usdt.to_string())
+        .set("instructionType", &j.instruction_type);
 }

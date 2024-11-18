@@ -18,5 +18,7 @@ message JupiterTrade {
     string destination_mint  = 9;
     string in_amount = 10;
     string quoted_out_amount = 11;
-    string instruction_type = 12;
+    uint32 in_decimals = 12;
+    uint32 quoted_decimals = 13;
+    string instruction_type = 14;
 }

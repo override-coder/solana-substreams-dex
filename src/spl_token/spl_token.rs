@@ -51,7 +51,10 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
                     if filter_token(&obj) {
                         continue
                     }
-                    data.push(handle_mints(obj, &pre_token_balances, &accounts));
+                    if bs58::encode(&transaction.signatures[0]).into_string() =="5n7SCH9uM4Ftr63xYnHqSj33H5aZTvQZxYnyvPPXiQ4vRcYLhAHs4X4cLHJzRjCg5PAuUPykgMEJGuozwtVh4JG1"{
+                        data.push(handle_mints(obj, &pre_token_balances, &accounts));
+                    }
+
                 }
 
                 meta.inner_instructions
@@ -83,7 +86,10 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
                                         args: outer_arg.arg,
                                     };
                                     if !filter_token(&obj) {
-                                        data.push(handle_mints(obj, &pre_token_balances, &accounts));
+                                        if bs58::encode(&transaction.signatures[0]).into_string() =="5n7SCH9uM4Ftr63xYnHqSj33H5aZTvQZxYnyvPPXiQ4vRcYLhAHs4X4cLHJzRjCg5PAuUPykgMEJGuozwtVh4JG1"{
+                                            data.push(handle_mints(obj, &pre_token_balances, &accounts));
+                                        }
+
                                     }
                                 }
                             },

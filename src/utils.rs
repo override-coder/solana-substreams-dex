@@ -105,6 +105,23 @@ pub fn get_amt(
     (result,expont)
 }
 
+pub fn get_decimals(
+    in_mint: &String,
+    out_mint: &String,
+    post_token_balances: &Vec<TokenBalance>,
+) -> (u32, u32) {
+    fn find_decimals(mint: &String, balances: &Vec<TokenBalance>) -> u32 {
+        balances
+            .iter()
+            .find(|token_balance| token_balance.mint == *mint)
+            .and_then(|token_balance| token_balance.ui_token_amount.as_ref())
+            .map_or(0, |ui_token_amount| ui_token_amount.decimals)
+    }
+    let in_decimals = find_decimals(in_mint, post_token_balances);
+    let out_decimals = find_decimals(out_mint, post_token_balances);
+    (in_decimals, out_decimals)
+}
+
 pub fn get_token_transfer(
     address: &String,
     input_inner_idx: u32,

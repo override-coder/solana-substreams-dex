@@ -31,7 +31,11 @@ pub struct JupiterTrade {
     pub in_amount: ::prost::alloc::string::String,
     #[prost(string, tag="11")]
     pub quoted_out_amount: ::prost::alloc::string::String,
-    #[prost(string, tag="12")]
+    #[prost(uint32, tag="12")]
+    pub in_decimals: u32,
+    #[prost(uint32, tag="13")]
+    pub quoted_decimals: u32,
+    #[prost(string, tag="14")]
     pub instruction_type: ::prost::alloc::string::String,
 }
 // @@protoc_insertion_point(module)
