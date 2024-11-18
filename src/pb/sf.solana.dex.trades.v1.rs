@@ -75,13 +75,9 @@ pub struct Pool {
     pub coin_mint: ::prost::alloc::string::String,
     #[prost(string, tag="6")]
     pub pc_mint: ::prost::alloc::string::String,
-    #[prost(string, tag="7")]
-    pub coin_token_account: ::prost::alloc::string::String,
-    #[prost(string, tag="8")]
-    pub pc_amount: ::prost::alloc::string::String,
-    #[prost(bool, tag="9")]
+    #[prost(bool, tag="7")]
     pub is_pump_fun: bool,
-    #[prost(string, tag="10")]
+    #[prost(string, tag="8")]
     pub tx_id: ::prost::alloc::string::String,
 }
 // @@protoc_insertion_point(module)

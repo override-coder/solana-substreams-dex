@@ -307,8 +307,6 @@ pub fn map_pools_created(block: Block) -> Result<Pools,Error> {
                     created_at_block_number: slot,
                     coin_mint,
                     pc_mint: p.pc_mint,
-                    coin_token_account: "".to_string(),
-                    pc_amount: "".to_string(),
                     is_pump_fun: p.is_pump_fun,
                     tx_id: bs58::encode(&transaction.signatures[0])
                         .into_string(),

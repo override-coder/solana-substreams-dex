@@ -78,6 +78,7 @@ modules:
       - map: map_pools_created
       - map: map_spl_token
       - map: map_token_metadata
+      - map: map_jupiter_aggregator
       - map: map_swap_block
       - store: store_sol_prices
 

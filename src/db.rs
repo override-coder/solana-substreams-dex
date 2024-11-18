@@ -3,9 +3,10 @@ use substreams::prelude::StoreGetFloat64;
 use substreams::store::StoreGet;
 use substreams_database_change::tables::Tables;
 use crate::constants::PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS;
+use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
 use crate::pb::sf::solana::dex::meta::v1::{TokenMetadataMeta, TokenMetas};
 use crate::pb::sf::solana::dex::spl::v1::{SplTokenMeta, SplTokens};
-use crate::pb::sf::solana::dex::trades::v1::{Swaps, TradeData};
+use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::utils::{calculate_price_and_amount_usd, WSOL_ADDRESS};
 
 #[derive(Debug)]
@@ -158,4 +159,46 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         }
     }
     token_map.insert(t.address.clone(), t);
+}
+
+pub(crate) fn create_pool_database_changes(tables: &mut Tables, pools: &Pools) {
+    for (_, t) in pools.pools.iter().enumerate() {
+        create_pool(tables, t);
+    }
+}
+
+fn create_pool(tables: &mut Tables, pool: &Pool) {
+    tables.create_row("pool",  &pool.address)
+        .set("createBlockSlot", pool.created_at_block_number)
+        .set("createBlockTime", pool.created_at_timestamp)
+        .set("txId", &pool.tx_id)
+        .set("pool_id", &pool.address)
+        .set("program", &pool.program)
+        .set("coin_mint", &pool.coin_mint)
+        .set("pc_mint", &pool.pc_mint)
+        .set("is_pump_fun", pool.is_pump_fun);
+}
+
+pub(crate) fn create_jupiter_swap_database_changes(tables: &mut Tables, swaps: &JupiterSwaps, store: &StoreGetFloat64) {
+    let wsol_price = store.get_last(WSOL_ADDRESS);
+    for (index, t) in swaps.data.iter().enumerate() {
+        create_jupiter_trade(tables, t,index as u32,wsol_price);
+    }
+}
+
+fn create_jupiter_trade(tables: &mut Tables,j: &JupiterTrade,index:u32, wsol_price_option: Option<f64>) {
+    let wol_price = wsol_price_option.unwrap_or(0.0);
+    tables.create_row("jupiter", format!("{}-{}", &j.tx_id, index))
+        .set("blockSlot", j.block_slot)
+        .set("blockTime", j.block_time)
+        .set("txId", &j.tx_id)
+        .set("signer", &j.signer)
+        .set("source_token_account", &j.source_token_account)
+        .set("destination_token_account", &j.destination_token_account)
+        .set("source_mint", &j.source_mint)
+        .set("destination_mint", &j.destination_mint)
+        .set("in_amount", &j.in_amount)
+        .set("wol_price",wol_price.to_string())
+        .set("quoted_out_amount",&j.quoted_out_amount)
+        .set("instruction_type", &j.instruction_type);
 }

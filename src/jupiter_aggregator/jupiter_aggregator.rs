@@ -2,6 +2,7 @@ use substreams_solana::pb::sf::solana::r#type::v1::{Block, TokenBalance};
 use crate::constants::JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS;
 use crate::jupiter_aggregator::jupiter_aggregator_instruction::{parse_instruction};
 use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
+use crate::utils::is_not_soltoken;
 
 #[substreams::handlers::map]
 fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::errors::Error> {
@@ -20,6 +21,9 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                 //     panic!("{:?}",inst.data)
                 // }
                 if let Some(out) = parse_instruction(program, inst.data, &inst.accounts, &accounts) {
+                    if is_not_soltoken(&out.source_mint,&out.destination_mint){
+                            continue
+                    }
                     data.push(JupiterTrade {
                         dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
                         block_time: timestamp,
@@ -43,20 +47,22 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                             |(inner_idx, inner_inst)| {
                                 let inner_program = &accounts[inner_inst.program_id_index as usize];
                                 if let Some(out) = parse_instruction(inner_program, inner_inst.data.clone(), &inst.accounts, &accounts) {
-                                    data.push(JupiterTrade {
-                                        dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
-                                        block_time: timestamp,
-                                        block_slot: slot,
-                                        tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
-                                        signer: out.signer,
-                                        source_token_account: out.source_token_account,
-                                        destination_token_account: out.destination_token_account,
-                                        source_mint: out.source_mint,
-                                        destination_mint: out.destination_mint,
-                                        in_amount: out.in_amount,
-                                        quoted_out_amount: out.quoted_out_amount,
-                                        instruction_type: out.instruction_types,
-                                    });
+                                    if !is_not_soltoken(&out.source_mint,&out.destination_mint){
+                                        data.push(JupiterTrade {
+                                            dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
+                                            block_time: timestamp,
+                                            block_slot: slot,
+                                            tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
+                                            signer: out.signer,
+                                            source_token_account: out.source_token_account,
+                                            destination_token_account: out.destination_token_account,
+                                            source_mint: out.source_mint,
+                                            destination_mint: out.destination_mint,
+                                            in_amount: out.in_amount,
+                                            quoted_out_amount: out.quoted_out_amount,
+                                            instruction_type: out.instruction_types,
+                                        });
+                                    }
                                 }
                             },
                         )

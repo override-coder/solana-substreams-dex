@@ -45,8 +45,6 @@ message Pool {
     uint64 created_at_block_number = 4;
     string coin_mint = 5;
     string pc_mint = 6;
-    string coin_token_account = 7;
-    string pc_amount = 8;
-    bool is_pump_fun = 9;
-    string tx_id = 10;
+    bool is_pump_fun = 7;
+    string tx_id = 8;
 }
