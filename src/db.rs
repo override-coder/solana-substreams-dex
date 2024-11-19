@@ -56,6 +56,8 @@ fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_op
         .set("quoteAmount", data.quote_amount)
         .set("baseDecimals", data.base_decimals)
         .set("quoteDecimals", data.quote_decimals)
+        .set("baseReserves", data.base_reserves)
+        .set("quoteReserves", data.quote_reserves)
         .set("price", token_price.to_string())
         .set("wsolPrice", wsol_price.to_string())
         .set("amountUSD", amount_usdt.to_string())
