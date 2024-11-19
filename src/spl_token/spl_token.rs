@@ -1,6 +1,6 @@
 use substreams_solana::pb::sf::solana::r#type::v1::{Block, TokenBalance};
 use crate::constants;
-use crate::constants::RAYDIUM_AUTHORITY_V4;
+use crate::constants::{RAYDIUM_AUTHORITY_V4};
 use crate::pb::sf::solana::dex::spl::v1::{Accounts, Arg, SplTokenMeta, SplTokens};
 use crate::spl_token::spl_token_instruction::{
     parse_instruction,
@@ -89,7 +89,6 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
                                         if bs58::encode(&transaction.signatures[0]).into_string() =="5n7SCH9uM4Ftr63xYnHqSj33H5aZTvQZxYnyvPPXiQ4vRcYLhAHs4X4cLHJzRjCg5PAuUPykgMEJGuozwtVh4JG1"{
                                             data.push(handle_mints(obj, &pre_token_balances, &accounts));
                                         }
-
                                     }
                                 }
                             },
@@ -135,6 +134,11 @@ fn filter_token(mut obj: &SplTokenMeta) -> bool {
             }
         }
     }
+    // if obj.instruction_type == INSTRUCTION_TYPE_TRANSFER || obj.instruction_type == INSTRUCTION_TYPE_TRANSFER_CHECKED {
+    //     if obj.outer_program != TOKEN_PROGRAM_ADDRESS.to_string() {
+    //         return true
+    //     }
+    // }
     return false;
 }
 

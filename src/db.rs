@@ -93,9 +93,9 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
             }
         }
         if t.instruction_type == "Transfer" || t.instruction_type == "TransferChecked" {
-           if t.outer_program == TOKEN_PROGRAM_ADDRESS.to_string() {
+        //   if t.outer_program == TOKEN_PROGRAM_ADDRESS.to_string() {
                 create_transfer(tables, t,index)
-            }
+          //  }
 
         }
     }
