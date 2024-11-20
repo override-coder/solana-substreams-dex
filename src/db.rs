@@ -23,6 +23,9 @@ pub struct Token {
 pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store: &StoreGetFloat64) {
     let wsol_price = store.get_last(WSOL_ADDRESS);
     for (index, t) in trade.data.iter().enumerate() {
+        if t.base_amount == 0 && t.quote_amount == 0 {
+            continue
+        }
         create_trade(tables, t, index as u32, wsol_price);
     }
 }
