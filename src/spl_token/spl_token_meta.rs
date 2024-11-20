@@ -46,7 +46,7 @@ fn map_token_metadata(block: Block) -> Result<TokenMetas, substreams::errors::Er
                                 process_token_metadata(
                                     &mut data,
                                     parsed_arg_data,
-                                    &inst.accounts,
+                                    &inner_inst.accounts,
                                     &accounts,
                                     &tx_id,
                                     slot,
