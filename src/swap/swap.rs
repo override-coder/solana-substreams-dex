@@ -54,8 +54,14 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                 let td_name = td.name;
                 let td_dapp_address = td.program;
 
-                let token0 = get_mint(&td.vault_a, &post_token_balances, &accounts,td_dapp_address.clone());
-                let token1 = get_mint(&td.vault_b, &pre_token_balances, &accounts, "".to_string());
+                let mut  token0 = get_mint(&td.vault_a, &post_token_balances, &accounts,td_dapp_address.clone());
+                if token0 == "" {
+                    token0 = get_mint(&td.vault_a, &pre_token_balances, &accounts,td_dapp_address.clone());
+                }
+                let mut token1 = get_mint(&td.vault_b, &pre_token_balances, &accounts, "".to_string());
+                if token1 == "" {
+                    token0 = get_mint(&td.vault_a, &post_token_balances, &accounts,td_dapp_address.clone());
+                }
 
                 // exclude trading pairs that are not sol
                 if is_not_soltoken(&token0,&token1) {
@@ -115,9 +121,14 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                                 let inner_td_name = inner_td.name;
                                 let inner_td_dapp_address = inner_td.program;
 
-                                let token0 = get_mint(&inner_td.vault_a, &pre_token_balances, &accounts,inner_td_dapp_address.clone());
-                                let token1 = get_mint(&inner_td.vault_b, &pre_token_balances, &accounts, "".to_string());
-
+                                let mut token0 = get_mint(&inner_td.vault_a, &pre_token_balances, &accounts,inner_td_dapp_address.clone());
+                                if token0 == "" {
+                                    token0 =  get_mint(&inner_td.vault_a, &post_token_balances, &accounts,inner_td_dapp_address.clone());
+                                }
+                                let mut token1 = get_mint(&inner_td.vault_b, &pre_token_balances, &accounts, "".to_string());
+                                if token1 == "" {
+                                    token1 =  get_mint(&inner_td.vault_b, &post_token_balances, &accounts, "".to_string());
+                                }
                                 let (reserves0,reserves1) = get_reserves(inner_program,&inner_instructions,log_message,&accounts,&token0, &token1);
 
                                 // exclude trading pairs that are not sol
