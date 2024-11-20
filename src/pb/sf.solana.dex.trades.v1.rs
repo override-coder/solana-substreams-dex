@@ -27,18 +27,18 @@ pub struct TradeData {
     pub base_vault: ::prost::alloc::string::String,
     #[prost(string, tag="10")]
     pub quote_vault: ::prost::alloc::string::String,
-    #[prost(int64, tag="11")]
-    pub base_amount: i64,
-    #[prost(int64, tag="12")]
-    pub quote_amount: i64,
+    #[prost(string, tag="11")]
+    pub base_amount: ::prost::alloc::string::String,
+    #[prost(string, tag="12")]
+    pub quote_amount: ::prost::alloc::string::String,
     #[prost(uint32, tag="13")]
     pub base_decimals: u32,
     #[prost(uint32, tag="14")]
     pub quote_decimals: u32,
-    #[prost(int64, tag="15")]
-    pub base_reserves: i64,
-    #[prost(int64, tag="16")]
-    pub quote_reserves: i64,
+    #[prost(uint64, tag="15")]
+    pub base_reserves: u64,
+    #[prost(uint64, tag="16")]
+    pub quote_reserves: u64,
     #[prost(bool, tag="17")]
     pub is_inner_instruction: bool,
     #[prost(uint32, tag="18")]

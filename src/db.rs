@@ -23,7 +23,7 @@ pub struct Token {
 pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store: &StoreGetFloat64) {
     let wsol_price = store.get_last(WSOL_ADDRESS);
     for (index, t) in trade.data.iter().enumerate() {
-        if t.base_amount == 0 && t.quote_amount == 0 {
+        if t.base_amount.parse::<f64>().unwrap_or(0.0) == 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) == 0.0 {
             continue
         }
         create_trade(tables, t, index as u32, wsol_price);
@@ -36,8 +36,8 @@ fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_op
             calculate_price_and_amount_usd(
                 &data.base_mint,
                 &data.quote_mint,
-                data.base_amount,
-                data.quote_amount,
+                &data.base_amount,
+                &data.quote_amount,
                 data.base_decimals,
                 data.quote_decimals,
                 wsol_price.abs(),
@@ -55,8 +55,8 @@ fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_op
         .set("quoteMint", &data.quote_mint)
         .set("baseVault", &data.base_vault)
         .set("quoteVault", &data.quote_vault)
-        .set("baseAmount", data.base_amount)
-        .set("quoteAmount", data.quote_amount)
+        .set("baseAmount", &data.base_amount)
+        .set("quoteAmount", &data.quote_amount)
         .set("baseDecimals", data.base_decimals)
         .set("quoteDecimals", data.quote_decimals)
         .set("baseReserves", data.base_reserves)
@@ -234,8 +234,8 @@ fn create_jupiter_trade(tables: &mut Tables,j: &JupiterTrade,index:u32, wsol_pri
             calculate_price_and_amount_usd(
                 &j.source_mint,
                 &j.destination_mint,
-                j.in_amount.parse().unwrap_or(0),
-                j.quoted_out_amount.parse().unwrap_or(0),
+                &j.in_amount,
+                &j.quoted_out_amount,
                 j.in_decimals,
                 j.quoted_decimals,
                 wsol_price.abs(),

@@ -63,8 +63,8 @@ pub fn get_amt(
     accounts: &Vec<String>,
     post_token_balances: &Vec<TokenBalance>,
     dapp_address: String,
-) -> (i64,u32) {
-    let mut result: i64 = 0;
+) -> (String,u32) {
+    let mut result: String = "".to_string();
     let mut expont: u32 = 9;
 
     let source_transfer_amt = get_token_transfer(
@@ -85,13 +85,13 @@ pub fn get_amt(
         dapp_address.clone(),
     );
 
-    if source_transfer_amt != 0 {
+    if source_transfer_amt != "" && source_transfer_amt != "0"{
         result = source_transfer_amt;
-    } else if destination_transfer_amt != 0 {
+    } else if destination_transfer_amt != "" && destination_transfer_amt != "0" {
         result = destination_transfer_amt;
     }
 
-    if result != 0 {
+    if result != "" && result != "0"  {
         let index = accounts.iter().position(|r| r == address).unwrap();
         post_token_balances
             .iter()
@@ -129,10 +129,7 @@ pub fn get_token_transfer(
     accounts: &Vec<String>,
     account_name_to_check: String,
     dapp_address: String,
-) -> i64 {
-    let mut result = 0;
-    let mut result_assigned = false;
-
+) -> String {
     if dapp_address.eq(PUMP_FUN_AMM_PROGRAM_ADDRESS)
     {
         return get_system_program_transfer(
@@ -144,6 +141,9 @@ pub fn get_token_transfer(
         );
     }
 
+    let mut result = "".to_string();
+    let mut result_assigned = false;
+
     inner_instructions.iter().for_each(|inner_instruction| {
         inner_instruction
             .instructions
@@ -151,6 +151,7 @@ pub fn get_token_transfer(
             .enumerate()
             .for_each(|(inner_idx, inner_inst)| {
                 let inner_program = &accounts[inner_inst.program_id_index as usize];
+
                 if inner_program
                     .as_str()
                     .eq("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
@@ -175,8 +176,7 @@ pub fn get_token_transfer(
                             if condition && address.eq(&source) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    let amount_i64 = data.amount as i64;
-                                    result = -amount_i64;
+                                    result = format!("-{}", data.amount.to_string());
                                     result_assigned = true;
                                 }
                             }
@@ -184,7 +184,7 @@ pub fn get_token_transfer(
                             if condition && address.eq(&destination) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    result = data.amount as i64;
+                                    result = data.amount.to_string();
                                     result_assigned = true;
                                 }
                             }
@@ -205,8 +205,7 @@ pub fn get_token_transfer(
                             if condition && address.eq(&source) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    let amount_i64 = data.amount as i64;
-                                    result = -amount_i64;
+                                    result = format!("-{}", data.amount.to_string());
                                     result_assigned = true;
                                 }
                             }
@@ -214,7 +213,7 @@ pub fn get_token_transfer(
                             if condition && address.eq(&destination) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    result = data.amount as i64;
+                                    result = data.amount.to_string();
                                     result_assigned = true;
                                 }
                             }
@@ -241,16 +240,16 @@ pub fn get_token_transfer(
     result
 }
 
-
 pub fn get_token_22_transfer(
     address: &String,
     input_inner_idx: u32,
     inner_instructions: &Vec<InnerInstructions>,
     accounts: &Vec<String>,
     account_name_to_check: String,
-) -> Option<i64> {
+) -> Option<String> {
     let mut result = None;
     let mut result_assigned = false;
+
     inner_instructions.iter().for_each(|inner_instruction| {
         inner_instruction
             .instructions
@@ -283,8 +282,7 @@ pub fn get_token_22_transfer(
                             if condition && address.eq(&source) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    let amount_i64 = data.amount as i64;
-                                    result = Some(-amount_i64);
+                                    result = Some(format!("-{}", data.amount.to_string()));
                                     result_assigned = true;
                                 }
                             }
@@ -292,7 +290,7 @@ pub fn get_token_22_transfer(
                             if condition && address.eq(&destination) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    result = Some(data.amount as i64);
+                                    result = Some(data.amount.to_string());
                                     result_assigned = true;
                                 }
                             }
@@ -313,8 +311,7 @@ pub fn get_token_22_transfer(
                             if condition && address.eq(&source) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    let amount_i64 = data.amount as i64;
-                                    result = Some(-amount_i64);
+                                    result = Some(format!("-{}", data.amount.to_string()));
                                     result_assigned = true;
                                 }
                             }
@@ -322,7 +319,7 @@ pub fn get_token_22_transfer(
                             if condition && address.eq(&destination) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    result = Some(data.amount as i64);
+                                    result = Some(data.amount.to_string());
                                     result_assigned = true;
                                 }
                             }
@@ -336,15 +333,14 @@ pub fn get_token_22_transfer(
     result
 }
 
-
 fn get_system_program_transfer(
     address: &String,
     input_inner_idx: u32,
     inner_instructions: &Vec<InnerInstructions>,
     accounts: &Vec<String>,
     account_name_to_check: String,
-) -> i64 {
-    let mut result = 0;
+) -> String {
+    let mut result = "".to_string();
     let mut result_assigned = false;
 
     inner_instructions.iter().for_each(|inner_instruction| {
@@ -380,8 +376,7 @@ fn get_system_program_transfer(
                             if condition && address.eq(&source) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    let amount_i64 = data.amount as i64;
-                                    result = -amount_i64;
+                                    result = format!("-{}", data.amount.to_string());
                                     result_assigned = true;
                                 }
                             }
@@ -389,7 +384,7 @@ fn get_system_program_transfer(
                             if condition && address.eq(&destination) {
                                 let data = TransferLayout::deserialize(&mut rest.clone()).unwrap();
                                 if !result_assigned {
-                                    result = data.amount as i64;
+                                    result = data.amount.to_string();
                                     result_assigned = true;
                                 }
                             }
@@ -404,7 +399,7 @@ fn get_system_program_transfer(
                     match PumpEventLayout::deserialize(&mut rest_slice) {
                         Ok(event) => {
                             if !result_assigned {
-                                result = event.sol_amount as i64;
+                                result = event.sol_amount.to_string();
                                 result_assigned = true;
 
                             }
@@ -436,10 +431,10 @@ pub fn is_not_soltoken(token0: &String, token1: &String) -> bool{
    return  token0.to_string() != WSOL_ADDRESS.to_string() && token1.to_string() != WSOL_ADDRESS.to_string()
 }
 
-pub fn get_wsol_price(base_mint: &str, quote_mint: &str,base_amount: i64, quote_amount: i64) -> Option<f64> {
+pub fn get_wsol_price(base_mint: &str, quote_mint: &str,base_amount: &String, quote_amount: &String) -> Option<f64> {
     match (base_mint, quote_mint) {
-        (USDT_ADDRESS | USDC_ADDRESS, WSOL_ADDRESS) => Some((base_amount as f64 / 1e6) / (quote_amount as f64 / 1e9)),
-        (WSOL_ADDRESS, USDT_ADDRESS | USDC_ADDRESS) => Some((quote_amount as f64 / 1e6) / (base_amount as f64 / 1e9)),
+        (USDT_ADDRESS | USDC_ADDRESS, WSOL_ADDRESS) => Some((base_amount.parse::<f64>().unwrap_or(0.0) / 1e6) / (quote_amount.parse::<f64>().unwrap_or(0.0) / 1e9)),
+        (WSOL_ADDRESS, USDT_ADDRESS | USDC_ADDRESS) => Some((quote_amount.parse::<f64>().unwrap_or(0.0) / 1e6) / (base_amount.parse::<f64>().unwrap_or(0.0) / 1e9)),
         _ => None,
     }
 }
@@ -447,14 +442,14 @@ pub fn get_wsol_price(base_mint: &str, quote_mint: &str,base_amount: i64, quote_
 pub fn calculate_price_and_amount_usd(
     base_mint: &str,
     quote_mint: &str,
-    base_amount: i64,
-    quote_amount: i64,
+    base_amount: &String,
+    quote_amount: &String,
     base_decimals: u32,
     quote_decimals: u32,
     wsol_price: f64,
 ) -> (f64, f64, f64) {
-    let base_amount_normalized = base_amount as f64 / 10f64.powi(base_decimals as i32);
-    let quote_amount_normalized = quote_amount as f64 / 10f64.powi(quote_decimals as i32);
+    let base_amount_normalized = base_amount.parse::<f64>().unwrap_or(0.0)  / 10f64.powi(base_decimals as i32);
+    let quote_amount_normalized = quote_amount.parse::<f64>().unwrap_or(0.0) / 10f64.powi(quote_decimals as i32);
     let amount_usd = if base_mint == WSOL_ADDRESS {
         base_amount_normalized * wsol_price
     } else if quote_mint == WSOL_ADDRESS {

@@ -16,12 +16,12 @@ message TradeData {
     string quote_mint = 8;
     string base_vault = 9;
     string quote_vault = 10;
-    int64 base_amount = 11;
-    int64 quote_amount = 12;
+    string base_amount = 11;
+    string quote_amount = 12;
     uint32 base_decimals = 13;
     uint32 quote_decimals = 14;
-    int64 base_reserves = 15;
-    int64  quote_reserves = 16;
+    uint64 base_reserves = 15;
+    uint64  quote_reserves = 16;
     bool is_inner_instruction = 17;
     uint32 instruction_index = 18;
     string instruction_type = 19;

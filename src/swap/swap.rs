@@ -62,6 +62,7 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                     continue
                 }
 
+
                 let (amount0,decimals0) = get_amt(&td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances, td_dapp_address.clone());
                 let (amount1,decimals1) = get_amt(&td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances, "".to_string());
 
@@ -77,8 +78,8 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                     quote_mint: token1,
                     base_amount: amount0,
                     quote_amount: amount1,
-                    base_reserves: reserves0 as i64,
-                    quote_reserves: reserves1 as i64,
+                    base_reserves: reserves0 ,
+                    quote_reserves: reserves1,
                     base_decimals: decimals0,
                     quote_decimals: decimals1,
                     base_vault: td.vault_a,
@@ -121,9 +122,8 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
 
                                 // exclude trading pairs that are not sol
                                 if !is_not_soltoken(&token0, &token1) {
-                                    let (amount0,decimals0) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances,inner_td_dapp_address.clone());
-                                    let (amount1,decimals1) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances,"".to_string());
-
+                                    let (amount0, decimals0) = get_amt(&inner_td.vault_a, 0 as u32, &inner_instructions, &accounts, &post_token_balances, inner_td_dapp_address.clone());
+                                    let (amount1, decimals1) = get_amt(&inner_td.vault_b, 0 as u32, &inner_instructions, &accounts, &post_token_balances, "".to_string());
                                     data.push(TradeData {
                                         tx_id: bs58::encode(&transaction.signatures[0])
                                             .into_string(),
@@ -133,12 +133,12 @@ fn process_block(block: Block) -> Result<Swaps,Error> {
                                         pool_address: inner_td.amm,
                                         base_mint: token0,
                                         quote_mint: token1,
-                                        base_amount:amount0,
+                                        base_amount: amount0,
                                         quote_amount: amount1,
                                         base_decimals:decimals0,
                                         quote_decimals: decimals1,
-                                        base_reserves: reserves0 as i64,
-                                        quote_reserves: reserves1 as i64,
+                                        base_reserves: reserves0,
+                                        quote_reserves: reserves1,
                                         base_vault: inner_td.vault_a,
                                         quote_vault: inner_td.vault_b,
                                         is_inner_instruction: true,
@@ -321,7 +321,7 @@ pub fn map_pools_created(block: Block) -> Result<Pools,Error> {
 #[substreams::handlers::store]
 pub fn store_sol_prices(swaps: Swaps,store: StoreSetFloat64)  {
     if let Some(trade) = find_sol_stable_coin_trade(&swaps.data) {
-        if let Some(price) = get_wsol_price(&trade.base_mint,&trade.quote_mint,trade.base_amount,trade.quote_amount) {
+        if let Some(price) = get_wsol_price(&trade.base_mint,&trade.quote_mint,&trade.base_amount,&trade.quote_amount) {
             store.set(0, WSOL_ADDRESS, &price);
         }
     }
