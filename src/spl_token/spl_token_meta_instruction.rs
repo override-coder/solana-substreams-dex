@@ -482,7 +482,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>) -> Instruction {
         42 => {
             result.instruction_type = INSTRUCTION_TYPE_CREATE.to_string();
             if rest_bytes.len() > 0 {
-                result.create_args = CreateArgsLayout::deserialize(rest_bytes).unwrap();
+               result.create_args = CreateArgsLayout::deserialize(rest_bytes).unwrap_or(CreateArgsLayout::default());
             }
         }
         _ => {}
