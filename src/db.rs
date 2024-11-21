@@ -19,6 +19,7 @@ pub struct Token {
     decimals: i32,
     total_supply: String,
     is_pump_fun: bool,
+    is_mutable:bool,
 }
 
 pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store: &StoreGetFloat64) {
@@ -110,7 +111,9 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
     }
 
     for (_, value) in &token_map {
-        create_token(tables,value);
+        if !value.is_mutable {
+            create_token(tables,value);
+        }
     }
 }
 
@@ -178,11 +181,13 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         decimals: arg.decimals().clone(),
         total_supply: "".to_string(),
         is_pump_fun: arg.mint_authority.as_ref().unwrap().to_string() == PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS.to_string(),
+        is_mutable: false,
     };
     if let Some(meta) = meta_option{
         if let Some(arg) = &meta.args {
             if meta.instruction_type == "CreateMetadataAccount" {
                 if let Some(m) = &arg.create_metadata_account_args {
+                    t.is_mutable = m.is_mutable;
                     if let Some(d) = &m.data{
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
@@ -192,6 +197,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
             }
             if meta.instruction_type == "CreateMetadataAccountV2" {
                 if let Some(m) = &arg.create_metadata_account_args_v2 {
+                    t.is_mutable = m.is_mutable;
                     if let Some(d) = &m.data{
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
@@ -201,6 +207,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
             }
             if meta.instruction_type == "CreateMetadataAccountV3" {
                 if let Some(m) = &arg.create_metadata_account_args_v3 {
+                    t.is_mutable = m.is_mutable;
                     if let Some(d) = &m.data{
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
