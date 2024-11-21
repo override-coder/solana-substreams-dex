@@ -15,6 +15,7 @@ pub struct Token {
     address: String,
     name: String,
     symbol: String,
+    uri: String,
     decimals: i32,
     total_supply: String,
     is_pump_fun: bool,
@@ -79,6 +80,8 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
         meta_map.insert(token_meta.tx_id.clone(), token_meta.clone());
     }
     let mut token_map: HashMap<String, Token> = HashMap::new();
+    let mut mint_map: HashMap<String, u64> = HashMap::new();
+
     for (index, t) in tokens.data.iter().enumerate() {
         if t.instruction_type == "InitializeMint2" || t.instruction_type == "InitializeMint" {
             let meta = meta_map.get(&t.tx_id);
@@ -86,24 +89,26 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
         }
         if t.instruction_type == "MintTo" || t.instruction_type == "MintToChecked" {
             if let Some(account) = &t.input_accounts {
-                if let Some(m) = &account.mint{
-                    if let Some(token) = token_map.get_mut(m) {
-                        if let Some(arg) = &t.args {
-                            if let Some(a) = arg.amount {
-                                token.total_supply = a.to_string();
-                            }
+                if let Some(mint_address) = &account.mint {
+                    if let Some(arg) = &t.args {
+                        if let Some(amount) = arg.amount {
+                            *mint_map.entry(mint_address.clone()).or_insert(0) += amount;
                         }
                     }
                 }
             }
         }
         if t.instruction_type == "Transfer" || t.instruction_type == "TransferChecked" {
-        //   if t.outer_program == TOKEN_PROGRAM_ADDRESS.to_string() {
-                create_transfer(tables, t,index)
-          //  }
-
+            create_transfer(tables, t,index)
         }
     }
+
+    for (mint_address, total_supply) in &mint_map {
+        if let Some(token) = token_map.get_mut(mint_address) {
+            token.total_supply = total_supply.to_string();
+        }
+    }
+
     for (_, value) in &token_map {
         create_token(tables,value);
     }
@@ -147,6 +152,7 @@ fn create_token(tables: &mut Tables, token: &Token) {
         .set("name", &token.name)
         .set("symbol", &token.symbol)
         .set("decimals", token.decimals)
+        .set("uri", &token.uri)
         .set("totalSupply", &token.total_supply)
         .set("isPumpFun", token.is_pump_fun);
 }
@@ -168,6 +174,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         address: account.mint.unwrap().to_string(),
         name: "".to_string(),
         symbol: "".to_string(),
+        uri: "".to_string(),
         decimals: arg.decimals().clone(),
         total_supply: "".to_string(),
         is_pump_fun: arg.mint_authority.as_ref().unwrap().to_string() == PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS.to_string(),
@@ -179,6 +186,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
                     if let Some(d) = &m.data{
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
+                        t.uri = d.uri.clone()
                     }
                 }
             }
@@ -187,6 +195,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
                     if let Some(d) = &m.data{
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
+                        t.uri = d.uri.clone()
                     }
                 }
             }
@@ -195,6 +204,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
                     if let Some(d) = &m.data{
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
+                        t.uri = d.uri.clone()
                     }
                 }
             }
