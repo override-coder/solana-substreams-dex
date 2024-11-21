@@ -70,6 +70,54 @@ pub struct PbDataV2Layout {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PbAssetDataLayout {
+    #[prost(string, tag="1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub symbol: ::prost::alloc::string::String,
+    #[prost(string, tag="3")]
+    pub uri: ::prost::alloc::string::String,
+    #[prost(uint32, tag="4")]
+    pub seller_fee_basis_points: u32,
+    #[prost(message, repeated, tag="5")]
+    pub creators: ::prost::alloc::vec::Vec<PbCreatorLayout>,
+    #[prost(bool, tag="6")]
+    pub primary_sale_happened: bool,
+    #[prost(bool, tag="7")]
+    pub is_mutable: bool,
+    #[prost(string, tag="8")]
+    pub token_standard: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="9")]
+    pub collection: ::core::option::Option<PbCollectionLayout>,
+    #[prost(message, optional, tag="10")]
+    pub uses: ::core::option::Option<PbUsesLayout>,
+    #[prost(message, optional, tag="11")]
+    pub collection_details: ::core::option::Option<PbCollectionDetailsLayout>,
+    #[prost(string, optional, tag="12")]
+    pub rule_set: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PbPrintSupplyLayout {
+    #[prost(string, tag="1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(uint64, optional, tag="2")]
+    pub val: ::core::option::Option<u64>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PbCreateArgsLayout {
+    #[prost(string, tag="1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="2")]
+    pub asset_data: ::core::option::Option<PbAssetDataLayout>,
+    #[prost(uint32, optional, tag="3")]
+    pub decimals: ::core::option::Option<u32>,
+    #[prost(message, optional, tag="4")]
+    pub print_supply: ::core::option::Option<PbPrintSupplyLayout>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PbCreateMetadataAccountArgsLayout {
     #[prost(message, optional, tag="1")]
     pub data: ::core::option::Option<PbDataLayout>,
@@ -103,7 +151,9 @@ pub struct Arg {
     pub create_metadata_account_args_v2: ::core::option::Option<PbCreateMetadataAccountArgsV2Layout>,
     #[prost(message, optional, tag="3")]
     pub create_metadata_account_args_v3: ::core::option::Option<PbCreateMetadataAccountArgsV3Layout>,
-    #[prost(string, tag="4")]
+    #[prost(message, optional, tag="4")]
+    pub create_args: ::core::option::Option<PbCreateArgsLayout>,
+    #[prost(string, tag="5")]
     pub instruction_type: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

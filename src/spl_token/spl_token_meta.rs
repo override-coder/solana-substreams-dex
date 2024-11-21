@@ -1,7 +1,7 @@
 use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use crate::constants;
 use crate::pb::sf::solana::dex::meta::v1::{Arg, TokenMetadataMeta, TokenMetas};
-use crate::spl_token::spl_token_meta_instruction::{prepare_arg, prepare_input_accounts, INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT, INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V2, INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V3};
+use crate::spl_token::spl_token_meta_instruction::{prepare_arg, prepare_input_accounts, INSTRUCTION_TYPE_CREATE, INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT, INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V2, INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V3};
 use crate::utils::convert_to_date;
 
 #[substreams::handlers::map]
@@ -114,4 +114,5 @@ fn get_arg(program: &str, instruction_data: Vec<u8>, tx_id: String) -> Option<Ar
 
 fn filter_metadata_is_none(mut obj: &TokenMetadataMeta) -> bool {
    return  obj.instruction_type != INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT && obj.instruction_type != INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V2 && obj.instruction_type != INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V3
+    && obj.instruction_type != INSTRUCTION_TYPE_CREATE
 }

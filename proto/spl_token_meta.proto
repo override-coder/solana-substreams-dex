@@ -42,6 +42,33 @@ message PbDataV2Layout {
     optional PbUsesLayout uses = 7;
 }
 
+message PbAssetDataLayout {
+    string name = 1;
+    string symbol = 2;
+    string uri = 3;
+    uint32 sellerFeeBasisPoints = 4;
+    repeated PbCreatorLayout creators = 5;
+    bool primarySaleHappened = 6;
+    bool isMutable = 7;
+    string tokenStandard = 8;
+    optional PbCollectionLayout collection = 9;
+    optional PbUsesLayout uses = 10;
+    optional PbCollectionDetailsLayout collectionDetails = 11;
+    optional string ruleSet = 12;
+}
+
+message PbPrintSupplyLayout {
+    string name = 1;
+    optional uint64 val = 2;
+}
+
+message PbCreateArgsLayout {
+    string name = 1;
+    PbAssetDataLayout asset_data = 2;
+    optional uint32 decimals = 3;
+    optional PbPrintSupplyLayout print_supply = 4;
+}
+
 message PbCreateMetadataAccountArgsLayout {
     PbDataLayout data = 1;
     bool isMutable = 2;
@@ -62,7 +89,8 @@ message Arg {
     optional PbCreateMetadataAccountArgsLayout createMetadataAccountArgs = 1;
     optional PbCreateMetadataAccountArgsV2Layout createMetadataAccountArgsV2 = 2;
     optional PbCreateMetadataAccountArgsV3Layout createMetadataAccountArgsV3 = 3;
-    string instruction_type = 4;
+    optional PbCreateArgsLayout createArgs = 4;
+    string instruction_type = 5;
 }
 
 message InputAccounts {
