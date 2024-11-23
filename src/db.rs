@@ -20,6 +20,7 @@ pub struct Token {
     total_supply: String,
     is_pump_fun: bool,
     create_dt: i64,
+    create_slot: u64,
 }
 
 pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store: &StoreGetFloat64) {
@@ -155,7 +156,9 @@ fn create_token(tables: &mut Tables, token: &Token) {
         .set("decimals", token.decimals)
         .set("uri", &token.uri)
         .set("totalSupply", &token.total_supply)
-        .set("isPumpFun", token.is_pump_fun);
+        .set("isPumpFun", token.is_pump_fun)
+        .set("create_dt",token.create_dt)
+        .set("create_slot",token.create_slot);
 }
 
 fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>, token_map: &mut HashMap<String, Token>)  {
@@ -180,6 +183,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         total_supply: "".to_string(),
         is_pump_fun: arg.mint_authority.as_ref().unwrap().to_string() == PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS.to_string(),
         create_dt: token.block_time,
+        create_slot:token.block_slot
     };
     if let Some(meta) = meta_option{
         if let Some(arg) = &meta.args {
