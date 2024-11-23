@@ -19,6 +19,7 @@ pub struct Token {
     decimals: i32,
     total_supply: String,
     is_pump_fun: bool,
+    create_dt: i64,
 }
 
 pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store: &StoreGetFloat64) {
@@ -178,6 +179,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         decimals: arg.decimals().clone(),
         total_supply: "".to_string(),
         is_pump_fun: arg.mint_authority.as_ref().unwrap().to_string() == PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS.to_string(),
+        create_dt: token.block_time,
     };
     if let Some(meta) = meta_option{
         if let Some(arg) = &meta.args {
