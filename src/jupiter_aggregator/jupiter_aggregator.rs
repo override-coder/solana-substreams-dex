@@ -24,10 +24,6 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                 //     panic!("{:?}",inst.data)
                 // }
                 if let Some(out) = parse_instruction(program, inst.data, &inst.accounts, &accounts) {
-                    if is_not_soltoken(&out.source_mint,&out.destination_mint){
-                            continue
-                    }
-
                     let (in_decimals,quoted_decimals) = get_decimals(&out.source_mint,&out.destination_mint, &post_token_balances);
 
                     data.push(JupiterTrade {
@@ -55,8 +51,6 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                             |(inner_idx, inner_inst)| {
                                 let inner_program = &accounts[inner_inst.program_id_index as usize];
                                 if let Some(out) = parse_instruction(inner_program, inner_inst.data.clone(), &inst.accounts, &accounts) {
-                                    if !is_not_soltoken(&out.source_mint,&out.destination_mint){
-
                                         let (in_decimals,quoted_decimals) = get_decimals(&out.source_mint,&out.destination_mint, &post_token_balances);
 
                                         data.push(JupiterTrade {
@@ -75,7 +69,7 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                                             quoted_decimals,
                                             instruction_type: out.instruction_types,
                                         });
-                                    }
+                                    //}
                                 }
                             },
                         )
