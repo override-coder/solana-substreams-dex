@@ -27,7 +27,7 @@ pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store:
     let wsol_price = store.get_last(WSOL_ADDRESS);
     for (index, t) in trade.data.iter().enumerate() {
         if t.base_amount.parse::<f64>().unwrap_or(0.0) == 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) == 0.0 {
-            continue
+            continue;
         }
         create_trade(tables, t, index as u32, wsol_price);
     }
@@ -102,7 +102,7 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
             }
         }
         if t.instruction_type == "Transfer" || t.instruction_type == "TransferChecked" {
-            create_transfer(tables, t,index)
+            create_transfer(tables, t, index)
         }
     }
 
@@ -113,12 +113,12 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
     }
 
     for (_, value) in &token_map {
-        create_token(tables,value);
+        create_token(tables, value);
     }
 }
 
 fn create_transfer(tables: &mut Tables, token: &SplTokenMeta, index: usize) {
-    let (mint,signer,source,destination) = match &token.input_accounts  {
+    let (mint, signer, source, destination) = match &token.input_accounts {
         Some(account) => {
             (account.mint.clone().unwrap_or("".to_string()),
              account.owner.clone().unwrap_or("".to_string()),
@@ -126,26 +126,26 @@ fn create_transfer(tables: &mut Tables, token: &SplTokenMeta, index: usize) {
              account.destination.clone().unwrap_or("".to_string()),
             )
         }
-        None => ("".to_string(),"".to_string(),"".to_string(),"".to_string()),
+        None => ("".to_string(), "".to_string(), "".to_string(), "".to_string()),
     };
-    let (amount , decimals) = match &token.args {
+    let (amount, decimals) = match &token.args {
         Some(arg) => {
-            (arg.amount.unwrap_or(0),arg.decimals.unwrap_or(9))
+            (arg.amount.unwrap_or(0), arg.decimals.unwrap_or(9))
         }
         None => {
-            (0,0)
+            (0, 0)
         }
     };
     tables.create_row("transfer", format!("{}-{}", &token.tx_id, index))
         .set("blockSlot", token.block_slot)
         .set("blockTime", token.block_time)
         .set("txId", &token.tx_id)
-        .set("token",mint)
-        .set("signer",signer)
-        .set("source",source)
-        .set("destination",destination)
-        .set("amount",amount.to_string())
-        .set("decimals",decimals.to_string());
+        .set("token", mint)
+        .set("signer", signer)
+        .set("source", source)
+        .set("destination", destination)
+        .set("amount", amount.to_string())
+        .set("decimals", decimals.to_string());
 }
 
 fn create_token(tables: &mut Tables, token: &Token) {
@@ -158,12 +158,12 @@ fn create_token(tables: &mut Tables, token: &Token) {
         .set("uri", &token.uri)
         .set("totalSupply", &token.total_supply)
         .set("isPumpFun", token.is_pump_fun)
-        .set("create_dt",token.create_dt)
-        .set("create_slot",token.create_slot);
+        .set("create_dt", token.create_dt)
+        .set("create_slot", token.create_slot);
 }
 
-fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>, token_map: &mut HashMap<String, Token>)  {
-    if token.input_accounts.is_none(){
+fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>, token_map: &mut HashMap<String, Token>) {
+    if token.input_accounts.is_none() {
         return;
     }
     let account = token.input_accounts.unwrap();
@@ -174,7 +174,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         return;
     }
     let arg = token.args.unwrap();
-    let mut t = Token{
+    let mut t = Token {
         tx_id: token.tx_id.clone(),
         address: account.mint.unwrap().to_string(),
         name: "".to_string(),
@@ -184,13 +184,13 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         total_supply: "".to_string(),
         is_pump_fun: arg.mint_authority.as_ref().unwrap().to_string() == PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS.to_string(),
         create_dt: token.block_time,
-        create_slot:token.block_slot
+        create_slot: token.block_slot,
     };
-    if let Some(meta) = meta_option{
+    if let Some(meta) = meta_option {
         if let Some(arg) = &meta.args {
             if meta.instruction_type == "CreateMetadataAccount" {
                 if let Some(m) = &arg.create_metadata_account_args {
-                    if let Some(d) = &m.data{
+                    if let Some(d) = &m.data {
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
                         t.uri = d.uri.clone()
@@ -199,7 +199,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
             }
             if meta.instruction_type == "CreateMetadataAccountV2" {
                 if let Some(m) = &arg.create_metadata_account_args_v2 {
-                    if let Some(d) = &m.data{
+                    if let Some(d) = &m.data {
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
                         t.uri = d.uri.clone()
@@ -208,7 +208,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
             }
             if meta.instruction_type == "CreateMetadataAccountV3" {
                 if let Some(m) = &arg.create_metadata_account_args_v3 {
-                    if let Some(d) = &m.data{
+                    if let Some(d) = &m.data {
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
                         t.uri = d.uri.clone()
@@ -217,7 +217,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
             }
             if meta.instruction_type == "Create" {
                 if let Some(m) = &arg.create_args {
-                    if let Some(d) = &m.asset_data{
+                    if let Some(d) = &m.asset_data {
                         t.name = d.name.clone();
                         t.symbol = d.symbol.clone();
                         t.uri = d.uri.clone()
@@ -236,7 +236,7 @@ pub(crate) fn create_pool_database_changes(tables: &mut Tables, pools: &Pools) {
 }
 
 fn create_pool(tables: &mut Tables, pool: &Pool) {
-    tables.create_row("pool",  &pool.address)
+    tables.create_row("pool", &pool.address)
         .set("createBlockSlot", pool.created_at_block_number)
         .set("createBlockTime", pool.created_at_timestamp)
         .set("txId", &pool.tx_id)
@@ -250,12 +250,11 @@ fn create_pool(tables: &mut Tables, pool: &Pool) {
 pub(crate) fn create_jupiter_swap_database_changes(tables: &mut Tables, swaps: &JupiterSwaps, store: &StoreGetFloat64) {
     let wsol_price = store.get_last(WSOL_ADDRESS);
     for (index, t) in swaps.data.iter().enumerate() {
-        create_jupiter_trade(tables, t,index as u32,wsol_price);
+        create_jupiter_trade(tables, t, index as u32, wsol_price);
     }
 }
 
-fn create_jupiter_trade(tables: &mut Tables,j: &JupiterTrade,index:u32, wsol_price_option: Option<f64>) {
-    if j.tx_id == "27dzkdJEbRD8sH5ossUnN223dHdefVRcMjKrZx33mLjZipFj1QEBHxjvs2XYMAaFhyExHXUUViGPyHf5dintwYta" {
+fn create_jupiter_trade(tables: &mut Tables, j: &JupiterTrade, index: u32, wsol_price_option: Option<f64>) {
         let (token_price, amount_usdt, wsol_price) = match wsol_price_option {
             Some(wsol_price) => {
                 calculate_price_and_amount_usd(
@@ -288,5 +287,4 @@ fn create_jupiter_trade(tables: &mut Tables,j: &JupiterTrade,index:u32, wsol_pri
             .set("wsolPrice", wsol_price.to_string())
             .set("amountUSD", amount_usdt.to_string())
             .set("instructionType", &j.instruction_type);
-    }
 }
