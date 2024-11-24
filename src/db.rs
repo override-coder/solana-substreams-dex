@@ -44,6 +44,7 @@ fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_op
                 data.base_decimals,
                 data.quote_decimals,
                 wsol_price.abs(),
+                "".to_string(),
             )
         }
         None => (0.0, 0.0, 0.0),
@@ -254,35 +255,38 @@ pub(crate) fn create_jupiter_swap_database_changes(tables: &mut Tables, swaps: &
 }
 
 fn create_jupiter_trade(tables: &mut Tables,j: &JupiterTrade,index:u32, wsol_price_option: Option<f64>) {
-    let (token_price, amount_usdt, wsol_price) = match wsol_price_option {
-        Some(wsol_price) => {
-            calculate_price_and_amount_usd(
-                &j.source_mint,
-                &j.destination_mint,
-                &j.in_amount,
-                &j.quoted_out_amount,
-                j.in_decimals,
-                j.quoted_decimals,
-                wsol_price.abs(),
-            )
-        }
-        None => (0.0, 0.0, 0.0),
-    };
-    tables.create_row("jupiter", format!("{}-{}", &j.tx_id, index))
-        .set("blockSlot", j.block_slot)
-        .set("blockTime", j.block_time)
-        .set("txId", &j.tx_id)
-        .set("signer", &j.signer)
-        .set("sourceTokenAccount", &j.source_token_account)
-        .set("destinationTokenAccount", &j.destination_token_account)
-        .set("sourceMint", &j.source_mint)
-        .set("destinationMint", &j.destination_mint)
-        .set("inAmount", &j.in_amount)
-        .set("quotedOutAmount",&j.quoted_out_amount)
-        .set("baseDecimals", j.in_decimals)
-        .set("quoteDecimals", j.quoted_decimals)
-        .set("price", token_price.to_string())
-        .set("wsolPrice", wsol_price.to_string())
-        .set("amountUSD", amount_usdt.to_string())
-        .set("instructionType", &j.instruction_type);
+    if j.tx_id == "27dzkdJEbRD8sH5ossUnN223dHdefVRcMjKrZx33mLjZipFj1QEBHxjvs2XYMAaFhyExHXUUViGPyHf5dintwYta" {
+        let (token_price, amount_usdt, wsol_price) = match wsol_price_option {
+            Some(wsol_price) => {
+                calculate_price_and_amount_usd(
+                    &j.source_mint,
+                    &j.destination_mint,
+                    &j.in_amount,
+                    &j.quoted_out_amount,
+                    j.in_decimals,
+                    j.quoted_decimals,
+                    wsol_price,
+                    j.dapp.clone(),
+                )
+            }
+            None => (0.0, 0.0, 0.0),
+        };
+        tables.create_row("jupiter", format!("{}-{}", &j.tx_id, index))
+            .set("blockSlot", j.block_slot)
+            .set("blockTime", j.block_time)
+            .set("txId", &j.tx_id)
+            .set("signer", &j.signer)
+            .set("sourceTokenAccount", &j.source_token_account)
+            .set("destinationTokenAccount", &j.destination_token_account)
+            .set("sourceMint", &j.source_mint)
+            .set("destinationMint", &j.destination_mint)
+            .set("inAmount", &j.in_amount)
+            .set("quotedOutAmount", &j.quoted_out_amount)
+            .set("baseDecimals", j.in_decimals)
+            .set("quoteDecimals", j.quoted_decimals)
+            .set("price", token_price.to_string())
+            .set("wsolPrice", wsol_price.to_string())
+            .set("amountUSD", amount_usdt.to_string())
+            .set("instructionType", &j.instruction_type);
+    }
 }
