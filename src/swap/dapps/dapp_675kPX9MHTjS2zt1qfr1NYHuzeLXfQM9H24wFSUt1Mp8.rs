@@ -147,20 +147,20 @@ pub fn parse_reserves_instruction(
     _: &Vec<InnerInstructions>,
     _: &Vec<String>,
     log_messages: &Vec<String>,
-    token0: &String,
-    token1: &String,
+    _: &String,
+    _: &String,
 ) -> (u64, u64) {
     if let Some(message) = parse_logs(log_messages) {
         if let Ok(bytes) = base64::decode_config(message, base64::STANDARD) {
             match bytes.get(0) {
                 Some(3) => {
                     if let Ok(log) = bincode::deserialize::<SwapBaseInLog>(&bytes) {
-                        return get_reserves_for_token(token0, token1, &log.pool_coin, &log.pool_pc);
+                        return (log.pool_coin, log.pool_pc)
                     }
                 }
                 Some(4) => {
                     if let Ok(log) = bincode::deserialize::<SwapBaseOutLog>(&bytes) {
-                        return get_reserves_for_token(token0, token1, &log.pool_coin, &log.pool_pc);
+                        return (log.pool_coin, log.pool_pc)
                     }
                 }
                 _ => {}
@@ -170,20 +170,20 @@ pub fn parse_reserves_instruction(
     (0, 0)
 }
 
-fn get_reserves_for_token(
-    token0: &String,
-    token1: &String,
-    pool_coin: &u64,
-    pool_pc: &u64,
-) -> (u64, u64) {
-    if token0 == WSOL_ADDRESS {
-        (*pool_coin, *pool_pc)
-    } else if token1 == WSOL_ADDRESS {
-        (*pool_pc, *pool_coin)
-    } else {
-        (0, 0)
-    }
-}
+// fn get_reserves_for_token(
+//     token0: &String,
+//     token1: &String,
+//     pool_coin: &u64,
+//     pool_pc: &u64,
+// ) -> (u64, u64) {
+//     if token0 == WSOL_ADDRESS {
+//         (*pool_coin, *pool_pc)
+//     } else if token1 == WSOL_ADDRESS {
+//         (*pool_pc, *pool_coin)
+//     } else {
+//         (0, 0)
+//     }
+// }
 
 pub fn parse_logs(log_messages: &Vec<String>) -> Option<String> {
     let mut result: Option<String> = None;
