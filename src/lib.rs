@@ -27,3 +27,13 @@ pub fn slink_database_out(pools: Pools, tokens: SplTokens, token_metas: TokenMet
 
     return Ok(tables.to_database_changes())
 }
+
+#[substreams::handlers::map]
+pub fn basic_database_out(pools: Pools, tokens: SplTokens, token_metas: TokenMetas) -> Result<DatabaseChanges, Error> {
+    let mut tables = substreams_database_change::tables::Tables::new();
+
+    db::create_token_database_changes(&mut tables, &tokens, &token_metas);
+    db::create_pool_database_changes(&mut tables,&pools);
+
+    return Ok(tables.to_database_changes())
+}
