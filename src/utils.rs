@@ -448,19 +448,7 @@ pub fn calculate_price_and_amount_usd(
     mut base_decimals: u32,
     quote_decimals: u32,
     wsol_price: f64,
-    dapp: String,
 ) -> (f64, f64, f64) {
-        if dapp == JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS {
-            if base_mint.clone() == "" {
-                if quote_mint.clone() == WSOL_ADDRESS {
-                    return (wsol_price.abs(), quote_amount.parse::<f64>().unwrap_or(0.0) / 10f64.powi(quote_decimals as i32) * wsol_price, wsol_price.abs())
-                }
-                if quote_mint.clone() != WSOL_ADDRESS {
-                    base_mint = WSOL_ADDRESS;
-                    base_decimals = 9
-                }
-            }
-        }
         let base_amount_normalized = base_amount.parse::<f64>().unwrap_or(0.0) / 10f64.powi(base_decimals as i32);
         let quote_amount_normalized = quote_amount.parse::<f64>().unwrap_or(0.0) / 10f64.powi(quote_decimals as i32);
         let amount_usd = if base_mint == WSOL_ADDRESS {

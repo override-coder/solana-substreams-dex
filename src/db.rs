@@ -44,7 +44,6 @@ fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_op
                 data.base_decimals,
                 data.quote_decimals,
                 wsol_price.abs(),
-                "".to_string(),
             )
         }
         None => (0.0, 0.0, 0.0),
@@ -265,7 +264,6 @@ fn create_jupiter_trade(tables: &mut Tables, j: &JupiterTrade, index: u32, wsol_
                     j.in_decimals,
                     j.quoted_decimals,
                     wsol_price,
-                    j.dapp.clone(),
                 )
             }
             None => (0.0, 0.0, 0.0),
