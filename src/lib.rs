@@ -29,6 +29,17 @@ pub fn slink_database_out(pools: Pools, tokens: SplTokens, token_metas: TokenMet
 }
 
 #[substreams::handlers::map]
+pub fn slink_swap_database_out(pools: Pools, tokens: SplTokens, token_metas: TokenMetas, swaps: Swaps, store: StoreGetFloat64) -> Result<DatabaseChanges, Error> {
+    let mut tables = substreams_database_change::tables::Tables::new();
+
+    db::create_token_database_changes(&mut tables, &tokens, &token_metas);
+    db::create_pool_database_changes(&mut tables,&pools);
+    db::created_trade_database_changes(&mut tables, &swaps, &store);
+
+    return Ok(tables.to_database_changes())
+}
+
+#[substreams::handlers::map]
 pub fn basic_database_out(pools: Pools, tokens: SplTokens, token_metas: TokenMetas) -> Result<DatabaseChanges, Error> {
     let mut tables = substreams_database_change::tables::Tables::new();
 
