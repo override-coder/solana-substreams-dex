@@ -34,9 +34,6 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                         (in_decimals, _) =
                             get_decimals(&source_mint, &destination_mint, &pre_token_balances);
                     }
-                    if (source_mint == WSOL_ADDRESS && destination_mint != WSOL_ADDRESS)
-                        || (source_mint != WSOL_ADDRESS && destination_mint == WSOL_ADDRESS)
-                    {
                         data.push(JupiterTrade {
                             dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
                             block_time: timestamp,
@@ -53,7 +50,6 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                             quoted_decimals,
                             instruction_type: out.instruction_types,
                         });
-                    }
                 }
             }
         }
