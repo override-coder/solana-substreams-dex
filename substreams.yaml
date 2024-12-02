@@ -84,27 +84,3 @@ modules:
 
     output:
       type: proto:sf.substreams.sink.database.v1.DatabaseChanges
-
-
-  - name: basic_database_out
-    kind: map
-    initialBlock: 304920023
-    inputs:
-      - map: map_pools_created
-      - map: map_spl_token
-      - map: map_token_metadata
-    output:
-      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
-
-  - name: slink_swap_database_out
-    kind: map
-    initialBlock:  304920023
-    inputs:
-      - map: map_pools_created
-      - map: map_spl_token
-      - map: map_token_metadata
-      - map: map_swap_block
-      - store: store_sol_prices
-    output:
-      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
-
