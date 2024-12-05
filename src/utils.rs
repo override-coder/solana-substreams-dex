@@ -441,14 +441,17 @@ pub fn get_wsol_price(base_mint: &str, quote_mint: &str,base_amount: &String, qu
 }
 
 pub fn calculate_price_and_amount_usd(
-    mut base_mint:  &str,
+    base_mint:  &str,
     quote_mint: &str,
     base_amount: &String,
     quote_amount: &String,
-    mut base_decimals: u32,
+    base_decimals: u32,
     quote_decimals: u32,
     wsol_price: f64,
 ) -> (f64, f64, f64) {
+        if base_mint != WSOL_ADDRESS && quote_mint != WSOL_ADDRESS {
+            return (0.0, 0.0, 0.0)
+        }
         let base_amount_normalized = base_amount.parse::<f64>().unwrap_or(0.0) / 10f64.powi(base_decimals as i32);
         let quote_amount_normalized = quote_amount.parse::<f64>().unwrap_or(0.0) / 10f64.powi(quote_decimals as i32);
         let amount_usd = if base_mint == WSOL_ADDRESS {
