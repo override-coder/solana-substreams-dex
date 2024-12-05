@@ -3,7 +3,7 @@ use crate::jupiter_aggregator::jupiter_aggregator_instruction::{
     parse_inner_instruction, parse_instruction, InstructionSwapEvent, RouterInstruction,
 };
 use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
-use crate::utils::{get_decimals, is_not_soltoken, WSOL_ADDRESS};
+use crate::utils::{get_decimals, is_not_soltoken, USDC_ADDRESS, USDT_ADDRESS, WSOL_ADDRESS};
 use substreams_solana::pb::sf::solana::r#type::v1::{
     Block, CompiledInstruction, TokenBalance, TransactionStatusMeta,
 };
@@ -34,6 +34,8 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                         (in_decimals, _) =
                             get_decimals(&source_mint, &destination_mint, &pre_token_balances);
                     }
+                    if filter_data(&source_mint,&destination_mint)
+                    {
                         data.push(JupiterTrade {
                             dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
                             block_time: timestamp,
@@ -50,6 +52,7 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                             quoted_decimals,
                             instruction_type: out.instruction_types,
                         });
+                    }
                 }
             }
         }
@@ -140,4 +143,15 @@ fn extract_swap_event_data(
             last_event.output_amount,
         ))
     }
+}
+
+fn filter_data(source_mint: &String, destination_mint: &String) -> bool {
+    is_target_pair(source_mint, destination_mint, WSOL_ADDRESS)
+        || is_target_pair(source_mint, destination_mint, USDT_ADDRESS)
+        || is_target_pair(source_mint, destination_mint, USDC_ADDRESS)
+}
+
+fn is_target_pair(source_mint: &str, destination_mint: &str, target_address: &str) -> bool {
+    (source_mint == target_address && destination_mint != target_address)
+        || (source_mint != target_address && destination_mint == target_address)
 }
