@@ -4,7 +4,7 @@ use substreams::store::StoreGet;
 use substreams_database_change::tables::Tables;
 use crate::constants::{PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS, TOKEN_PROGRAM_ADDRESS};
 use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
-use crate::pb::sf::solana::dex::meta::v1::{TokenMetadataMeta, TokenMetas};
+use crate::pb::sf::solana::dex::meta::v1::{InputAccounts, TokenMetadataMeta, TokenMetas};
 use crate::pb::sf::solana::dex::spl::v1::{Accounts, Arg, SplTokenMeta, SplTokens};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::utils::{calculate_price_and_amount_usd, WSOL_ADDRESS};
@@ -86,8 +86,7 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
 
     for (index, t) in tokens.data.iter().enumerate() {
         if t.instruction_type == "InitializeMint2" || t.instruction_type == "InitializeMint" {
-            let meta = meta_map.get(&t.tx_id);
-            parse_token_meta(t.clone(), meta, &mut token_map);
+            parse_token_meta(t.clone(), &mut meta_map, &mut token_map);
         }
         if t.instruction_type == "MintTo" || t.instruction_type == "MintToChecked" {
             if let Some(account) = &t.input_accounts {
@@ -108,7 +107,30 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
     for (mint_address, total_supply) in &mint_map {
         if let Some(token) = token_map.get_mut(mint_address) {
             token.total_supply = total_supply.to_string();
+        }else {
+            tables.create_row("mintTo", mint_address.to_string())
+                .set("address", mint_address.to_string())
+                .set("total_supply", total_supply.to_string());
         }
+    }
+
+    for (_, value) in &meta_map {
+        let mint_option = value.clone().input_accounts.unwrap_or(InputAccounts::default()).mint;
+        if mint_option.is_none() {
+            continue
+        }
+        let mint = mint_option.unwrap();
+        let arg_opt = value.clone().args;
+        if arg_opt.is_none() {
+            continue
+        }
+        let arg = arg_opt.unwrap();
+        let (name, symbol,uri) = parse_meta_arg(value.instruction_type.clone(), &arg);
+        tables.create_row("meta", mint.to_string())
+            .set("address",  mint.to_string())
+            .set("name", name)
+            .set("symbol", symbol)
+            .set("uri", uri);
     }
 
     for (_, value) in &token_map {
@@ -161,7 +183,7 @@ fn create_token(tables: &mut Tables, token: &Token) {
         .set("create_slot", token.create_slot);
 }
 
-fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>, token_map: &mut HashMap<String, Token>) {
+fn parse_token_meta(token: SplTokenMeta, meta_map:  &mut HashMap<String, TokenMetadataMeta>, token_map: &mut HashMap<String, Token>) {
     if token.input_accounts.is_none() {
         return;
     }
@@ -175,7 +197,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
     let arg = token.args.unwrap();
     let mut t = Token {
         tx_id: token.tx_id.clone(),
-        address: account.mint.unwrap().to_string(),
+        address: account.clone().mint.unwrap().to_string(),
         name: "".to_string(),
         symbol: "".to_string(),
         uri: "".to_string(),
@@ -185,43 +207,12 @@ fn parse_token_meta(token: SplTokenMeta, meta_option: Option<&TokenMetadataMeta>
         create_dt: token.block_time,
         create_slot: token.block_slot,
     };
+    let meta_option = meta_map.get(&t.tx_id);
     if let Some(meta) = meta_option {
-        if let Some(arg) = &meta.args {
-            if meta.instruction_type == "CreateMetadataAccount" {
-                if let Some(m) = &arg.create_metadata_account_args {
-                    if let Some(d) = &m.data {
-                        t.name = d.name.clone();
-                        t.symbol = d.symbol.clone();
-                        t.uri = d.uri.clone()
-                    }
-                }
-            }
-            if meta.instruction_type == "CreateMetadataAccountV2" {
-                if let Some(m) = &arg.create_metadata_account_args_v2 {
-                    if let Some(d) = &m.data {
-                        t.name = d.name.clone();
-                        t.symbol = d.symbol.clone();
-                        t.uri = d.uri.clone()
-                    }
-                }
-            }
-            if meta.instruction_type == "CreateMetadataAccountV3" {
-                if let Some(m) = &arg.create_metadata_account_args_v3 {
-                    if let Some(d) = &m.data {
-                        t.name = d.name.clone();
-                        t.symbol = d.symbol.clone();
-                        t.uri = d.uri.clone()
-                    }
-                }
-            }
-            if meta.instruction_type == "Create" {
-                if let Some(m) = &arg.create_args {
-                    if let Some(d) = &m.asset_data {
-                        t.name = d.name.clone();
-                        t.symbol = d.symbol.clone();
-                        t.uri = d.uri.clone()
-                    }
-                }
+        if account.mint.unwrap().to_string()== meta.clone().input_accounts.unwrap_or(InputAccounts::default()).mint.unwrap_or("".to_string()) {
+            if let Some(arg) = &meta.args {
+                (t.name, t.symbol,t.uri) = parse_meta_arg(meta.instruction_type.clone(), arg);
+                meta_map.remove(&t.tx_id);
             }
         }
     }
@@ -285,4 +276,36 @@ fn create_jupiter_trade(tables: &mut Tables, j: &JupiterTrade, index: u32, wsol_
             .set("wsolPrice", wsol_price.to_string())
             .set("amountUSD", amount_usdt.to_string())
             .set("instructionType", &j.instruction_type);
+}
+
+fn parse_meta_arg(instruction_type: String,arg: &crate::pb::sf::solana::dex::meta::v1::Arg) -> (String,String,String) {
+    if instruction_type == "CreateMetadataAccount" {
+        if let Some(m) = &arg.create_metadata_account_args {
+            if let Some(d) = &m.data {
+              return   ( d.name.clone(),d.symbol.clone(), d.uri.clone())
+            }
+        }
+    }
+    if instruction_type == "CreateMetadataAccountV2" {
+        if let Some(m) = &arg.create_metadata_account_args_v2 {
+            if let Some(d) = &m.data {
+                return   ( d.name.clone(),d.symbol.clone(), d.uri.clone())
+            }
+        }
+    }
+    if instruction_type == "CreateMetadataAccountV3" {
+        if let Some(m) = &arg.create_metadata_account_args_v3 {
+            if let Some(d) = &m.data {
+                return   ( d.name.clone(),d.symbol.clone(), d.uri.clone())
+            }
+        }
+    }
+    if instruction_type == "Create" {
+        if let Some(m) = &arg.create_args {
+            if let Some(d) = &m.asset_data {
+                return  ( d.name.clone(),d.symbol.clone(), d.uri.clone())
+            }
+        }
+    }
+    return ("".to_string(),"".to_string(),"".to_string())
 }
