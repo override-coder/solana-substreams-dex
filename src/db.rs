@@ -107,10 +107,6 @@ pub(crate) fn create_token_database_changes(tables: &mut Tables, tokens: &SplTok
     for (mint_address, total_supply) in &mint_map {
         if let Some(token) = token_map.get_mut(mint_address) {
             token.total_supply = total_supply.to_string();
-        }else {
-            tables.create_row("mintTo", mint_address.to_string())
-                .set("address", mint_address.to_string())
-                .set("total_supply", total_supply.to_string());
         }
     }
 
