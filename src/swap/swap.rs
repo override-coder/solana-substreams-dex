@@ -1,4 +1,4 @@
-use crate::constants::{PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS};
+use crate::constants::{PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
 use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
@@ -111,7 +111,6 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     &token0,
                     &token1,
                 );
-
                 data.push(TradeData {
                     tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
                     block_slot: slot,
@@ -278,6 +277,15 @@ fn get_trade_instruction(
                     input_accounts,
                 );
         }
+
+        RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS => {
+            result =
+                dapps::dapp_CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
+
         _ => {}
     }
     return result;

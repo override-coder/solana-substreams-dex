@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use substreams::prelude::StoreGetFloat64;
 use substreams::store::StoreGet;
 use substreams_database_change::tables::Tables;
-use crate::constants::{PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS, TOKEN_PROGRAM_ADDRESS};
+use crate::constants::{PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, TOKEN_PROGRAM_ADDRESS};
 use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
 use crate::pb::sf::solana::dex::meta::v1::{InputAccounts, TokenMetadataMeta, TokenMetas};
 use crate::pb::sf::solana::dex::spl::v1::{Accounts, Arg, SplTokenMeta, SplTokens};
@@ -27,6 +27,9 @@ pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store:
     let wsol_price = store.get_last(WSOL_ADDRESS);
     for (index, t) in trade.data.iter().enumerate() {
         if t.base_amount.parse::<f64>().unwrap_or(0.0) == 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) == 0.0 {
+            continue;
+        }
+        if t.outer_program == RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS || t.inner_program == RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS{
             continue;
         }
         create_trade(tables, t, index as u32, wsol_price);
