@@ -424,6 +424,7 @@ pub fn map_pools_created(block: Block) -> Result<Pools, Error> {
 pub fn store_sol_prices(swaps: Swaps, store: StoreSetFloat64) {
     if let Some(trade) = find_sol_stable_coin_trade(&swaps.data) {
         if let Some(price) = get_wsol_price(
+            &trade.pool_address,
             &trade.base_mint,
             &trade.quote_mint,
             &trade.base_amount,
