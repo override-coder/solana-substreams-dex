@@ -198,7 +198,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                 if !is_not_soltoken(&token0, &token1) {
                                     let (amount0, decimals0) = get_amt(
                                         &inner_td.vault_a,
-                                        0 as u32,
+                                        inner_idx as u32,
                                         &inner_instructions,
                                         &accounts,
                                         &post_token_balances,
@@ -206,7 +206,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                     );
                                     let (amount1, decimals1) = get_amt(
                                         &inner_td.vault_b,
-                                        0 as u32,
+                                        inner_idx as u32,
                                         &inner_instructions,
                                         &accounts,
                                         &post_token_balances,
