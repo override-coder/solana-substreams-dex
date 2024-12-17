@@ -446,19 +446,30 @@ pub fn is_not_soltoken(token0: &String, token1: &String) -> bool{
    return  token0.to_string() != WSOL_ADDRESS.to_string() && token1.to_string() != WSOL_ADDRESS.to_string()
 }
 
-pub fn get_wsol_price(pool_address:&str, base_mint: &str, quote_mint: &str,base_amount: &String, quote_amount: &String) -> Option<f64> {
+pub fn get_wsol_price(pool_address:&str, base_mint: &str, quote_mint: &str,base_amount: &String, quote_amount: &String,base_reserves: u64, quote_reserves: u64) -> Option<f64> {
     if !validation_pool(pool_address){
         return None;
     }
     match (base_mint, quote_mint) {
         (USDT_ADDRESS | USDC_ADDRESS, WSOL_ADDRESS) => {
-            calculate_wsol_price(base_amount, quote_amount, 1e6, 1e9)
+            //calculate_wsol_price(base_amount, quote_amount, 1e6, 1e9)
+            calculate_wsol_price_use_reserves(base_reserves,quote_reserves,1e6, 1e9)
         }
         (WSOL_ADDRESS, USDT_ADDRESS | USDC_ADDRESS) => {
-            calculate_wsol_price(quote_amount, base_amount, 1e6, 1e9)
+            //calculate_wsol_price(quote_amount, base_amount, 1e6, 1e9)
+            calculate_wsol_price_use_reserves(quote_reserves,base_reserves,1e6, 1e9)
         }
         _ => None,
     }
+}
+
+fn calculate_wsol_price_use_reserves(base_reserves: u64, quote_reserves: u64, base_divisor: f64, quote_divisor: f64) -> Option<f64> {
+    if base_reserves == 0 || quote_reserves == 0 {
+        return None;
+    }
+    let base = base_reserves as f64;
+    let quote = quote_reserves as f64;
+    Some((base / base_divisor)  / (quote / quote_divisor))
 }
 
 fn calculate_wsol_price(base_amount: &str, quote_amount: &str, base_divisor: f64, quote_divisor: f64) -> Option<f64> {

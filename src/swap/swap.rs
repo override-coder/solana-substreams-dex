@@ -429,6 +429,8 @@ pub fn store_sol_prices(swaps: Swaps, store: StoreSetFloat64) {
             &trade.quote_mint,
             &trade.base_amount,
             &trade.quote_amount,
+            trade.base_reserves,
+            trade.quote_reserves,
         ) {
             store.set(0, WSOL_ADDRESS, &price);
         }
