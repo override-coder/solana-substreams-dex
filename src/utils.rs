@@ -464,6 +464,9 @@ fn calculate_wsol_price(base_amount: &str, quote_amount: &str, base_divisor: f64
     if base == 0.0 || quote == 0.0 {
         return None;
     }
+    if (quote / quote_divisor) < 1f64 {
+        return None
+    }
     Some((base / base_divisor) / (quote / quote_divisor))
 }
 
