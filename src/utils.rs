@@ -63,6 +63,9 @@ pub fn get_mint(
         .iter()
         .filter(|token_balance| token_balance.account_index == index as u32)
         .for_each(|token_balance| {
+            if token_balance.owner ==  "GThUX1Atko4tqhN2NaiTazWSeFWMuiUvfFnyJyUghFMJ" {
+                return
+            }
             result = token_balance.mint.clone();
         });
     return result;

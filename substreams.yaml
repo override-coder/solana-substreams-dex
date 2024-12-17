@@ -26,6 +26,7 @@ network: solana
 modules:
   - name: map_pools_created
     kind: map
+    initialBlock:  308077883
     inputs:
       - map: sol:blocks_without_votes
     output:
@@ -33,6 +34,7 @@ modules:
 
   - name: map_spl_token
     kind: map
+    initialBlock:  308077883
     inputs:
       - map: sol:blocks_without_votes
     output:
@@ -40,6 +42,7 @@ modules:
 
   - name: map_token_metadata
     kind: map
+    initialBlock:  308077883
     inputs:
       - map: sol:blocks_without_votes
     output:
@@ -47,6 +50,7 @@ modules:
 
   - name: map_swap_block
     kind: map
+    initialBlock:  308077883
     inputs:
       - map: sol:blocks_without_votes
     output:
@@ -54,6 +58,7 @@ modules:
 
   - name: map_jupiter_aggregator
     kind: map
+    initialBlock:  308077883
     inputs:
       - map: sol:blocks_without_votes
     output:
@@ -68,6 +73,7 @@ modules:
 
   - name: slink_database_out
     kind: map
+    initialBlock:  308077883
     inputs:
       - map: map_pools_created
       - map: map_spl_token
@@ -78,3 +84,27 @@ modules:
 
     output:
       type: proto:sf.substreams.sink.database.v1.DatabaseChanges
+
+
+  - name: basic_database_out
+    kind: map
+    initialBlock: 308077883
+    inputs:
+      - map: map_pools_created
+      - map: map_spl_token
+      - map: map_token_metadata
+    output:
+      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
+
+  - name: slink_swap_database_out
+    kind: map
+    initialBlock:  308077883
+    inputs:
+      - map: map_pools_created
+      - map: map_spl_token
+      - map: map_token_metadata
+      - map: map_swap_block
+      - store: store_sol_prices
+    output:
+      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
+
