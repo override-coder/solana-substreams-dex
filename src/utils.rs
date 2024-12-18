@@ -12,13 +12,13 @@ pub const WSOL_ADDRESS: &str = "So11111111111111111111111111111111111111112";
 pub const USDT_ADDRESS: &str = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 pub const USDC_ADDRESS: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
-const VALID_POOLS: [&str; 6] = [
+const VALID_POOLS: [&str; 2] = [
     "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX",
     "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
-    "3nMFwZXwY1s1M5s8vYAHqd4wGs4iSxXE4LRoUMMYqEgF",
-    "8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj",
-    "ExcBWu8fGPdJiaF1b1z3iEef38sjQJks8xvj6M85pPY6",
-    "CYbD9RaToYMtWKA7QZyoLahnHdWq553Vm62Lh6qWtuxq",
+    // "3nMFwZXwY1s1M5s8vYAHqd4wGs4iSxXE4LRoUMMYqEgF",
+    // "8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj",
+    // "ExcBWu8fGPdJiaF1b1z3iEef38sjQJks8xvj6M85pPY6",
+    // "CYbD9RaToYMtWKA7QZyoLahnHdWq553Vm62Lh6qWtuxq",
 ];
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug)]

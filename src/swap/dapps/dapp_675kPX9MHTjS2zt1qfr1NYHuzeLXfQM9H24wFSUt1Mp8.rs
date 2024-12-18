@@ -147,54 +147,72 @@ pub fn parse_reserves_instruction(
     _: &Vec<InnerInstructions>,
     _: &Vec<String>,
     log_messages: &Vec<String>,
-    _: &String,
-    _: &String,
+    amount0: &String,
+    amount1: &String,
 ) -> (u64, u64) {
-    if let Some(message) = parse_logs(log_messages) {
-        if let Ok(bytes) = base64::decode_config(message, base64::STANDARD) {
+    let mut pool_coin = 0u64;
+    let mut pool_pc = 0u64;
+
+    let logs = parse_logs(log_messages);
+    for log in logs {
+        if let Ok(bytes) = base64::decode_config(&log, base64::STANDARD) {
             match bytes.get(0) {
                 Some(3) => {
                     if let Ok(log) = bincode::deserialize::<SwapBaseInLog>(&bytes) {
-                        return (log.pool_coin, log.pool_pc)
+                        pool_coin = log.pool_coin;
+                        pool_pc = log.pool_pc;
+                        let amount_in = log.amount_in;
+                        let amount_out = log.out_amount;
+                        if is_matching(amount_in,amount_out, amount0, amount1) {
+                            return (pool_coin, pool_pc);
+                        }
                     }
                 }
                 Some(4) => {
                     if let Ok(log) = bincode::deserialize::<SwapBaseOutLog>(&bytes) {
-                        return (log.pool_coin, log.pool_pc)
+                        pool_coin = log.pool_coin;
+                        pool_pc = log.pool_pc;
+                        let amount_in = log.max_in;
+                        let amount_out = log.amount_out;
+                        if is_matching(amount_in,amount_out, amount0, amount1) {
+                            return (pool_coin, pool_pc);
+                        }
                     }
                 }
                 _ => {}
             }
         }
     }
+
     (0, 0)
 }
 
-// fn get_reserves_for_token(
-//     token0: &String,
-//     token1: &String,
-//     pool_coin: &u64,
-//     pool_pc: &u64,
-// ) -> (u64, u64) {
-//     if token0 == WSOL_ADDRESS {
-//         (*pool_coin, *pool_pc)
-//     } else if token1 == WSOL_ADDRESS {
-//         (*pool_pc, *pool_coin)
-//     } else {
-//         (0, 0)
-//     }
-// }
-
-pub fn parse_logs(log_messages: &Vec<String>) -> Option<String> {
-    let mut result: Option<String> = None;
+pub fn parse_logs(log_messages: &Vec<String>) -> Vec<String> {
+    let mut results: Vec<String> = Vec::new();
     for log_message in log_messages {
-        if log_message.starts_with("Program log: ") & log_message.contains("ray_log") {
+        if log_message.starts_with("Program log: ") && log_message.contains("ray_log") {
             let swap_log_value = log_message
                 .replace("Program log: ray_log: ", "")
                 .trim()
                 .to_string();
-            result = Some(swap_log_value);
+            results.push(swap_log_value);
         }
     }
-    return result;
+    results
+}
+
+fn is_matching(amount_in: u64, amount_out: u64, amount0: &String, amount1: &String) -> bool {
+    let amount0_parsed = amount0.trim_start_matches('-').parse::<u64>().unwrap_or(0);
+    let amount1_parsed = amount1.trim_start_matches('-').parse::<u64>().unwrap_or(0);
+    let amount0_comparison = if amount0.starts_with('-') {
+        amount_out == amount0_parsed
+    } else {
+        amount_in == amount0_parsed
+    };
+    let amount1_comparison = if amount1.starts_with('-') {
+        amount_out == amount1_parsed
+    } else {
+        amount_in == amount1_parsed
+    };
+    amount0_comparison && amount1_comparison
 }

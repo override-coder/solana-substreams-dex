@@ -1,4 +1,5 @@
-use crate::constants::{PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS};
+use std::string::ToString;
+use crate::constants::{PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
 use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
@@ -110,7 +111,10 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     &accounts,
                     &token0,
                     &token1,
+                    &amount0,
+                    &amount1,
                 );
+
                 data.push(TradeData {
                     tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
                     block_slot: slot,
@@ -185,14 +189,6 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         "".to_string(),
                                     );
                                 }
-                                let (reserves0, reserves1) = get_reserves(
-                                    inner_program,
-                                    &inner_instructions,
-                                    log_message,
-                                    &accounts,
-                                    &token0,
-                                    &token1,
-                                );
 
                                 // exclude trading pairs that are not sol
                                 if !is_not_soltoken(&token0, &token1) {
@@ -212,6 +208,18 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         &post_token_balances,
                                         "".to_string(),
                                     );
+
+                                    let (reserves0, reserves1) = get_reserves(
+                                        inner_program,
+                                        &inner_instructions,
+                                        log_message,
+                                        &accounts,
+                                        &token0,
+                                        &token1,
+                                        &amount0,
+                                        &amount1,
+                                    );
+
                                     data.push(TradeData {
                                         tx_id: bs58::encode(&transaction.signatures[0])
                                             .into_string(),
@@ -239,7 +247,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                     });
                                 }
                             }
-                        },
+                            },
                     )
                 });
         }
@@ -298,6 +306,8 @@ fn get_reserves(
     log_messages: &Vec<String>,
     tokn0: &String,
     tokn1: &String,
+    amount0: &String,
+    amount1: &String,
 ) -> (u64, u64) {
     let (mut reserves0, mut reserves1) = (0, 0);
     match program.as_str() {
@@ -307,8 +317,8 @@ fn get_reserves(
                     inner_instructions,
                     log_messages,
                     accounts,
-                    tokn0,
-                    tokn1,
+                    amount0,
+                    amount1,
                 );
         }
         // Pump.fun
