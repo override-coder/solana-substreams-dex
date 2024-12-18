@@ -152,7 +152,6 @@ pub fn parse_reserves_instruction(
 ) -> (u64, u64) {
     let mut pool_coin = 0u64;
     let mut pool_pc = 0u64;
-
     let logs = parse_logs(log_messages);
     for log in logs {
         if let Ok(bytes) = base64::decode_config(&log, base64::STANDARD) {

@@ -1,5 +1,7 @@
-use std::string::ToString;
-use crate::constants::{PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS};
+use crate::constants::{
+    PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS,
+    RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,
+};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
 use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
@@ -7,6 +9,7 @@ use crate::utils::{
     find_sol_stable_coin_trade, get_amt, get_mint, get_wsol_price, is_not_soltoken,
     prepare_input_accounts, WSOL_ADDRESS,
 };
+use std::string::ToString;
 use substreams::errors::Error;
 use substreams::log;
 use substreams::prelude::*;
@@ -103,9 +106,11 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     &post_token_balances,
                     "".to_string(),
                 );
-
                 let (reserves0, reserves1) = get_reserves(
                     program,
+                    &td.amm,
+                    &td.vault_a,
+                    &td.vault_b,
                     &inner_instructions,
                     log_message,
                     &accounts,
@@ -113,7 +118,9 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     &token1,
                     &amount0,
                     &amount1,
+                    &post_token_balances,
                 );
+
 
                 data.push(TradeData {
                     tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
@@ -208,9 +215,11 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         &post_token_balances,
                                         "".to_string(),
                                     );
-
                                     let (reserves0, reserves1) = get_reserves(
                                         inner_program,
+                                        &inner_td.amm,
+                                        &inner_td.vault_a,
+                                        &inner_td.vault_b,
                                         &inner_instructions,
                                         log_message,
                                         &accounts,
@@ -218,6 +227,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         &token1,
                                         &amount0,
                                         &amount1,
+                                        &post_token_balances,
                                     );
 
                                     data.push(TradeData {
@@ -247,7 +257,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                     });
                                 }
                             }
-                            },
+                        },
                     )
                 });
         }
@@ -301,13 +311,17 @@ fn get_trade_instruction(
 
 fn get_reserves(
     program: &String,
+    amm: &String,
+    vault_a: &String,
+    vault_b: &String,
     inner_instructions: &Vec<InnerInstructions>,
-    accounts: &Vec<String>,
     log_messages: &Vec<String>,
-    tokn0: &String,
-    tokn1: &String,
+    accounts: &Vec<String>,
+    token0: &String,
+    token1: &String,
     amount0: &String,
     amount1: &String,
+    post_token_balances: &Vec<TokenBalance>,
 ) -> (u64, u64) {
     let (mut reserves0, mut reserves1) = (0, 0);
     match program.as_str() {
@@ -315,8 +329,8 @@ fn get_reserves(
             (reserves0, reserves1) =
                 dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_reserves_instruction(
                     inner_instructions,
-                    log_messages,
                     accounts,
+                    log_messages,
                     amount0,
                     amount1,
                 );
@@ -326,10 +340,22 @@ fn get_reserves(
             (reserves0, reserves1) =
                 dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_reserves_instruction(
                     inner_instructions,
-                    log_messages,
                     accounts,
-                    tokn0,
-                    tokn1,
+                    log_messages,
+                    token0,
+                    token1,
+                );
+        }
+        RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS => {
+            (reserves0, reserves1) =
+                dapps::dapp_CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK::parse_reserves_instruction(
+                    amm,
+                    accounts,
+                    post_token_balances,
+                    vault_a,
+                    vault_b,
+                    token0,
+                    token1,
                 );
         }
         _ => {}

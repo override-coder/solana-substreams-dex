@@ -83,7 +83,7 @@ pub fn parse_reserves_instruction(
     inner_instructions: &Vec<InnerInstructions>,
     accounts: &Vec<String>,
     _: &Vec<String>,
-    tokn0: &String,
+    token0: &String,
     _: &String
 ) -> (u64, u64) {
     for inner_instruction in inner_instructions {
@@ -91,7 +91,7 @@ pub fn parse_reserves_instruction(
             let inner_program = &accounts[inner_inst.program_id_index as usize];
             if inner_program == PUMP_FUN_AMM_PROGRAM_ADDRESS {
                 if let Some((pc_reserves, coin_reserves)) = parse_swap_event(&inner_inst.data) {
-                    return if tokn0 == WSOL_ADDRESS {
+                    return if token0 == WSOL_ADDRESS {
                         (coin_reserves, pc_reserves)
                     } else {
                         (pc_reserves, coin_reserves)
