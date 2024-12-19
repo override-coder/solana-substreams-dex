@@ -440,6 +440,9 @@ pub fn map_pools_created(block: Block) -> Result<Pools, Error> {
                 if p.program == PUMP_FUN_AMM_PROGRAM_ADDRESS && coin_mint == "" {
                     coin_mint = WSOL_ADDRESS.to_string()
                 }
+                if is_not_soltoken(&p.pc_mint,&coin_mint){
+                    continue
+                }
                 data.push(Pool {
                     program: p.program,
                     address: p.amm,
