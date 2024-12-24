@@ -34,8 +34,7 @@ fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::erro
                         (in_decimals, _) =
                             get_decimals(&source_mint, &destination_mint, &pre_token_balances);
                     }
-                    if filter_data(&source_mint,&destination_mint)
-                    {
+                    if filter_data(&source_mint, &destination_mint) {
                         data.push(JupiterTrade {
                             dapp: JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS.to_string(),
                             block_time: timestamp,
@@ -106,15 +105,46 @@ fn extract_instruction_events(
     return None;
 }
 
-// Helper function to select the first and last events, or a single event
 fn select_swap_events(events: &[InstructionSwapEvent]) -> Option<Vec<InstructionSwapEvent>> {
     if events.is_empty() {
         return None;
     }
     if events.len() == 1 {
         Some(vec![events[0].clone()])
-    } else {
+    } else if events.len() == 2 {
         Some(vec![events[0].clone(), events[events.len() - 1].clone()])
+    } else {
+        let last_event = events.last().unwrap();
+        let target_input_mint = &last_event.input_mint;
+        let target_output_mint = &last_event.output_mint;
+
+        let mut total_input_amount = last_event.input_amount;
+        let mut total_output_amount = last_event.output_amount;
+
+        let mut prev_output_mint = Some(target_output_mint);
+        for event in events.iter().rev().skip(1) {
+            if let Some(prev_mint) = prev_output_mint {
+                if &event.output_mint == prev_mint && &event.input_mint == target_input_mint {
+                    total_input_amount += event.input_amount;
+                    total_output_amount += event.output_amount;
+                    prev_output_mint = Some(&event.input_mint);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        Some(vec![
+            events[0].clone(),
+            InstructionSwapEvent {
+                amm: last_event.amm,
+                input_mint: target_input_mint.clone(),
+                input_amount: total_input_amount,
+                output_mint: target_output_mint.clone(),
+                output_amount: total_output_amount,
+            },
+        ])
     }
 }
 
