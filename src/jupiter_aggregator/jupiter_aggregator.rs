@@ -11,8 +11,12 @@ use substreams_solana::pb::sf::solana::r#type::v1::{
 #[substreams::handlers::map]
 fn map_jupiter_aggregator(block: Block) -> Result<JupiterSwaps, substreams::errors::Error> {
     let slot = block.slot;
-    let timestamp = block.block_time.as_ref().unwrap().timestamp;
+    let timestamp = block.block_time.as_ref();
     let mut data: Vec<JupiterTrade> = vec![];
+    if timestamp.is_none() {
+        return Ok(JupiterSwaps { data });
+    }
+    let timestamp = timestamp.unwrap().timestamp;
     for trx in block.transactions_owned() {
         let accounts: Vec<String> = trx
             .resolved_accounts()

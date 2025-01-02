@@ -615,6 +615,7 @@ dependencies = [
  "bs58 0.5.1",
  "bytes",
  "chrono",
+ "log",
  "num-bigint",
  "once_cell",
  "prost",

@@ -21,8 +21,13 @@ use crate::utils::{convert_to_date, get_b58_string, prepare_input_accounts};
 #[substreams::handlers::map]
 fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
     let slot = block.slot;
-    let timestamp = block.block_time.as_ref().unwrap().timestamp;
+    let timestamp = block.block_time.as_ref();
     let mut data: Vec<SplTokenMeta> = vec![];
+    if timestamp.is_none() {
+        log::info!("block at slot {} has no timestamp", slot);
+        return Ok(SplTokens { data });
+    }
+    let timestamp = timestamp.unwrap().timestamp;
     for trx in block.transactions_owned() {
         let accounts:Vec<String> = trx.resolved_accounts().iter().map(|account| bs58::encode(account).into_string())
             .collect();
