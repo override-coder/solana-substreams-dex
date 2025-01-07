@@ -29,6 +29,12 @@ pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store:
         if t.base_amount.parse::<f64>().unwrap_or(0.0) == 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) == 0.0 {
             continue;
         }
+        if t.base_amount.parse::<f64>().unwrap_or(0.0) > 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) > 0.0 {
+            continue;
+        }
+        if t.base_amount.parse::<f64>().unwrap_or(0.0) < 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) < 0.0 {
+            continue;
+        }
         create_trade(tables, t, index as u32, wsol_price);
     }
 }
