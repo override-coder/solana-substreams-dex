@@ -1,6 +1,6 @@
 use crate::constants::{
-    PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS,
-    RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,
+    METEORA_PROGRAM_ADDRESS, PUMP_FUN_AMM_PROGRAM_ADDRESS,
+    RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,
 };
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
@@ -304,6 +304,13 @@ fn get_trade_instruction(
                 );
         }
 
+        METEORA_PROGRAM_ADDRESS => {
+            result =
+                dapps::dapp_LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
         _ => {}
     }
     return result;
@@ -349,6 +356,18 @@ fn get_reserves(
         RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS => {
             (reserves0, reserves1) =
                 dapps::dapp_CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK::parse_reserves_instruction(
+                    amm,
+                    accounts,
+                    post_token_balances,
+                    vault_a,
+                    vault_b,
+                    token0,
+                    token1,
+                );
+        }
+        METEORA_PROGRAM_ADDRESS => {
+            (reserves0, reserves1) =
+                dapps::dapp_LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo::parse_reserves_instruction(
                     amm,
                     accounts,
                     post_token_balances,
