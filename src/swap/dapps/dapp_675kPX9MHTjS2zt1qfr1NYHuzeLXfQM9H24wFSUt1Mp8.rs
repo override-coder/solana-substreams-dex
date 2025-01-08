@@ -143,49 +143,6 @@ pub struct SwapEvent {
     pool_pc : String
 }
 
-pub fn parse_reserves_instruction(
-    _: &Vec<InnerInstructions>,
-    _: &Vec<String>,
-    log_messages: &Vec<String>,
-    amount0: &String,
-    amount1: &String,
-) -> (u64, u64) {
-    let mut pool_coin = 0u64;
-    let mut pool_pc = 0u64;
-    let logs = parse_logs(log_messages);
-    for log in logs {
-        if let Ok(bytes) = base64::decode_config(&log, base64::STANDARD) {
-            match bytes.get(0) {
-                Some(3) => {
-                    if let Ok(log) = bincode::deserialize::<SwapBaseInLog>(&bytes) {
-                        pool_coin = log.pool_coin;
-                        pool_pc = log.pool_pc;
-                        let amount_in = log.amount_in;
-                        let amount_out = log.out_amount;
-                        if is_matching(amount_in,amount_out, amount0, amount1) {
-                            return (pool_coin, pool_pc);
-                        }
-                    }
-                }
-                Some(4) => {
-                    if let Ok(log) = bincode::deserialize::<SwapBaseOutLog>(&bytes) {
-                        pool_coin = log.pool_coin;
-                        pool_pc = log.pool_pc;
-                        let amount_in = log.max_in;
-                        let amount_out = log.amount_out;
-                        if is_matching(amount_in,amount_out, amount0, amount1) {
-                            return (pool_coin, pool_pc);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    (0, 0)
-}
-
 pub fn parse_logs(log_messages: &Vec<String>) -> Vec<String> {
     let mut results: Vec<String> = Vec::new();
     for log_message in log_messages {

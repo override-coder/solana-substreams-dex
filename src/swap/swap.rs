@@ -5,10 +5,7 @@ use crate::constants::{
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
 use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
-use crate::utils::{
-    find_sol_stable_coin_trade, get_amt, get_mint, get_wsol_price, is_not_soltoken,
-    prepare_input_accounts, WSOL_ADDRESS,
-};
+use crate::utils::{find_sol_stable_coin_trade, get_amt, get_mint, get_wsol_price, is_not_soltoken, parse_reserves_instruction, prepare_input_accounts, WSOL_ADDRESS};
 use std::string::ToString;
 use substreams::errors::Error;
 use substreams::log;
@@ -424,8 +421,7 @@ fn get_reserves(
     let (mut reserves0, mut reserves1) = (0, 0);
     match program.as_str() {
         RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
-            (reserves0, reserves1) =
-                dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_reserves_instruction(
+            (reserves0, reserves1) = parse_reserves_instruction(
                     &"5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1".to_string(),
                     accounts,
                     post_token_balances,
@@ -447,8 +443,7 @@ fn get_reserves(
                 );
         }
         RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS => {
-            (reserves0, reserves1) =
-                dapps::dapp_CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK::parse_reserves_instruction(
+            (reserves0, reserves1) = parse_reserves_instruction(
                     amm,
                     accounts,
                     post_token_balances,
@@ -459,8 +454,7 @@ fn get_reserves(
                 );
         }
         METEORA_PROGRAM_ADDRESS => {
-            (reserves0, reserves1) =
-                dapps::dapp_LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo::parse_reserves_instruction(
+            (reserves0, reserves1) = parse_reserves_instruction(
                     amm,
                     accounts,
                     post_token_balances,
@@ -472,8 +466,7 @@ fn get_reserves(
         }
 
         ORCA_PROGRAM_ADDRESS => {
-            (reserves0, reserves1) =
-                dapps::dapp_whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc::parse_reserves_instruction(
+            (reserves0, reserves1) = parse_reserves_instruction(
                     amm,
                     accounts,
                     post_token_balances,
