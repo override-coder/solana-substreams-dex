@@ -9,3 +9,6 @@ pub const PUMP_FUN_RAYDIUM_MIGRATION : &str = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxj
 pub const JUPITER_AGGREGATOR_V6_PROGRAM_ADDRESS : &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 pub const JUPITER_AGGREGATOR_V6_EVENT_AUTHORITY : &str = "D8cy77BBepLMngZx6ZukaTff5hCt1HrWyKk3Hnd9oitf";
 pub const METEORA_PROGRAM_ADDRESS: &str = "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo";
+pub const ORCA_PROGRAM_ADDRESS: &str = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc";
+
+

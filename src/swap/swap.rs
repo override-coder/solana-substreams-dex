@@ -1,6 +1,6 @@
 use crate::constants::{
     METEORA_PROGRAM_ADDRESS, PUMP_FUN_AMM_PROGRAM_ADDRESS,
-    RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,
+    RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,ORCA_PROGRAM_ADDRESS,
 };
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
@@ -146,6 +146,89 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     inner_program: "".to_string(),
                     txn_fee_lamports: meta.fee,
                 });
+
+                if td.second_swap_amm.clone().unwrap_or_default() != "" {
+                    let mut token0 = get_mint(
+                        &td.second_swap_vault_a.clone().unwrap(),
+                        &post_token_balances,
+                        &accounts,
+                        td_dapp_address.clone(),
+                    );
+                    if token0 == "" {
+                        token0 = get_mint(
+                            &td.second_swap_vault_a.clone().unwrap(),
+                            &pre_token_balances,
+                            &accounts,
+                            td_dapp_address.clone(),
+                        );
+                    }
+                    let mut token1 =
+                        get_mint(&td.second_swap_vault_b.clone().unwrap(), &pre_token_balances, &accounts, "".to_string());
+                    if token1 == "" {
+                        token1 = get_mint(&td.second_swap_vault_b.clone().unwrap(), &post_token_balances, &accounts, "".to_string());
+                    }
+
+                    // exclude trading pairs that are not sol
+                    if is_not_soltoken(&token0, &token1) {
+                        continue;
+                    }
+
+                    let (amount0, decimals0) = get_amt(
+                        &td.second_swap_vault_a.clone().unwrap(),
+                        0 as u32,
+                        &inner_instructions,
+                        &accounts,
+                        &post_token_balances,
+                        td_dapp_address.clone(),
+                    );
+                    let (amount1, decimals1) = get_amt(
+                        &td.second_swap_vault_b.clone().unwrap(),
+                        0 as u32,
+                        &inner_instructions,
+                        &accounts,
+                        &post_token_balances,
+                        "".to_string(),
+                    );
+                    let (reserves0, reserves1) = get_reserves(
+                        program,
+                        &td.second_swap_amm.clone().unwrap(),
+                        &td.second_swap_vault_a.clone().unwrap(),
+                        &td.second_swap_vault_b.clone().unwrap(),
+                        &inner_instructions,
+                        log_message,
+                        &accounts,
+                        &token0,
+                        &token1,
+                        &amount0,
+                        &amount1,
+                        &post_token_balances,
+                    );
+
+                    data.push(TradeData {
+                        tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
+                        block_slot: slot,
+                        block_time: timestamp,
+                        signer: accounts.get(0).unwrap().to_string(),
+                        pool_address: td.second_swap_amm.clone().unwrap(),
+                        base_mint: token0,
+                        quote_mint: token1,
+                        base_amount: amount0,
+                        quote_amount: amount1,
+                        base_reserves: reserves0,
+                        quote_reserves: reserves1,
+                        base_decimals: decimals0,
+                        quote_decimals: decimals1,
+                        base_vault:  td.second_swap_vault_a.clone().unwrap(),
+                        quote_vault:  td.second_swap_vault_b.clone().unwrap(),
+                        is_inner_instruction: false,
+                        instruction_index: idx as u32,
+                        instruction_type: td_name.clone(),
+                        inner_instruxtion_index: 0,
+                        outer_program: td_dapp_address.clone(),
+                        inner_program: "".to_string(),
+                        txn_fee_lamports: meta.fee,
+                    });
+                }
             }
 
             meta.inner_instructions
@@ -311,6 +394,14 @@ fn get_trade_instruction(
                     input_accounts,
                 );
         }
+
+        ORCA_PROGRAM_ADDRESS => {
+            result =
+                dapps::dapp_whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
         _ => {}
     }
     return result;
@@ -335,11 +426,13 @@ fn get_reserves(
         RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
             (reserves0, reserves1) =
                 dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_reserves_instruction(
-                    inner_instructions,
+                    &"5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1".to_string(),
                     accounts,
-                    log_messages,
-                    amount0,
-                    amount1,
+                    post_token_balances,
+                    vault_a,
+                    vault_b,
+                    token0,
+                    token1,
                 );
         }
         // Pump.fun
@@ -368,6 +461,19 @@ fn get_reserves(
         METEORA_PROGRAM_ADDRESS => {
             (reserves0, reserves1) =
                 dapps::dapp_LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo::parse_reserves_instruction(
+                    amm,
+                    accounts,
+                    post_token_balances,
+                    vault_a,
+                    vault_b,
+                    token0,
+                    token1,
+                );
+        }
+
+        ORCA_PROGRAM_ADDRESS => {
+            (reserves0, reserves1) =
+                dapps::dapp_whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc::parse_reserves_instruction(
                     amm,
                     accounts,
                     post_token_balances,
