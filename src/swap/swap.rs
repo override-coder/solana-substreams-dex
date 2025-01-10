@@ -1,16 +1,15 @@
-use crate::constants::{
-    METEORA_PROGRAM_ADDRESS, PUMP_FUN_AMM_PROGRAM_ADDRESS,
-    RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,ORCA_PROGRAM_ADDRESS,
-};
+use crate::constants::{METEORA_POOL_PROGRAM_ADDRESS, METEORA_PROGRAM_ADDRESS, MOONSHOT_ADDRESS, ORCA_PROGRAM_ADDRESS, PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, RAYDIUM_CPMM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
-use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
-use crate::utils::{find_sol_stable_coin_trade, get_amt, get_mint, get_wsol_price, is_not_soltoken, parse_reserves_instruction, prepare_input_accounts, WSOL_ADDRESS};
+use crate::swap::trade_instruction::TradeInstruction;
+use crate::utils::{
+    find_sol_stable_coin_trade, get_amt, get_mint, is_not_soltoken, parse_reserves_instruction,
+    prepare_input_accounts, WSOL_ADDRESS,
+};
+
 use std::string::ToString;
 use substreams::errors::Error;
 use substreams::log;
-use substreams::prelude::*;
-use substreams::store::StoreSetFloat64;
 use substreams_solana::pb::sf::solana::r#type::v1::{Block, InnerInstructions, TokenBalance};
 
 #[substreams::handlers::map]
@@ -39,12 +38,13 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
             continue;
         }
         let transaction = trx.transaction.unwrap();
+
         let meta = trx.meta.unwrap();
         let pre_token_balances = meta.pre_token_balances;
         let post_token_balances = meta.post_token_balances;
-
+        let post_balances = meta.post_balances;
+        let pre_balances = meta.pre_balances;
         let message = transaction.message.unwrap();
-
         for (idx, inst) in message.instructions.into_iter().enumerate() {
             let inner_instructions: Vec<InnerInstructions> =
                 filter_inner_instructions(&meta.inner_instructions, idx as u32);
@@ -88,21 +88,28 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                 }
 
                 let (amount0, decimals0) = get_amt(
+                    &td.amm,
                     &td.vault_a,
                     0 as u32,
                     &inner_instructions,
                     &accounts,
                     &post_token_balances,
                     td_dapp_address.clone(),
+                    pre_balances.clone(),
+                    post_balances.clone(),
                 );
                 let (amount1, decimals1) = get_amt(
+                    &td.amm,
                     &td.vault_b,
                     0 as u32,
                     &inner_instructions,
                     &accounts,
                     &post_token_balances,
                     "".to_string(),
+                    pre_balances.clone(),
+                    post_balances.clone(),
                 );
+
                 let (reserves0, reserves1) = get_reserves(
                     program,
                     &td.amm,
@@ -116,15 +123,15 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     &amount0,
                     &amount1,
                     &post_token_balances,
+                    &post_balances,
                 );
-
 
                 data.push(TradeData {
                     tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
                     block_slot: slot,
                     block_time: timestamp,
                     signer: accounts.get(0).unwrap().to_string(),
-                    pool_address: td.amm,
+                    pool_address: td.amm.clone().to_string(),
                     base_mint: token0,
                     quote_mint: token1,
                     base_amount: amount0,
@@ -159,10 +166,19 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                             td_dapp_address.clone(),
                         );
                     }
-                    let mut token1 =
-                        get_mint(&td.second_swap_vault_b.clone().unwrap(), &pre_token_balances, &accounts, "".to_string());
+                    let mut token1 = get_mint(
+                        &td.second_swap_vault_b.clone().unwrap(),
+                        &pre_token_balances,
+                        &accounts,
+                        "".to_string(),
+                    );
                     if token1 == "" {
-                        token1 = get_mint(&td.second_swap_vault_b.clone().unwrap(), &post_token_balances, &accounts, "".to_string());
+                        token1 = get_mint(
+                            &td.second_swap_vault_b.clone().unwrap(),
+                            &post_token_balances,
+                            &accounts,
+                            "".to_string(),
+                        );
                     }
 
                     // exclude trading pairs that are not sol
@@ -171,20 +187,26 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     }
 
                     let (amount0, decimals0) = get_amt(
+                        &td.amm,
                         &td.second_swap_vault_a.clone().unwrap(),
                         0 as u32,
                         &inner_instructions,
                         &accounts,
                         &post_token_balances,
                         td_dapp_address.clone(),
+                        pre_balances.clone(),
+                        post_balances.clone(),
                     );
                     let (amount1, decimals1) = get_amt(
+                        &td.amm,
                         &td.second_swap_vault_b.clone().unwrap(),
                         0 as u32,
                         &inner_instructions,
                         &accounts,
                         &post_token_balances,
                         "".to_string(),
+                        pre_balances.clone(),
+                        post_balances.clone(),
                     );
                     let (reserves0, reserves1) = get_reserves(
                         program,
@@ -199,6 +221,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                         &amount0,
                         &amount1,
                         &post_token_balances,
+                        &post_balances,
                     );
 
                     data.push(TradeData {
@@ -215,8 +238,8 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                         quote_reserves: reserves1,
                         base_decimals: decimals0,
                         quote_decimals: decimals1,
-                        base_vault:  td.second_swap_vault_a.clone().unwrap(),
-                        quote_vault:  td.second_swap_vault_b.clone().unwrap(),
+                        base_vault: td.second_swap_vault_a.clone().unwrap(),
+                        quote_vault: td.second_swap_vault_b.clone().unwrap(),
                         is_inner_instruction: false,
                         instruction_index: idx as u32,
                         instruction_type: td_name.clone(),
@@ -280,20 +303,26 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                 // exclude trading pairs that are not sol
                                 if !is_not_soltoken(&token0, &token1) {
                                     let (amount0, decimals0) = get_amt(
+                                        &inner_td.amm,
                                         &inner_td.vault_a,
                                         inner_idx as u32,
                                         &inner_instructions,
                                         &accounts,
                                         &post_token_balances,
                                         inner_td_dapp_address.clone(),
+                                        pre_balances.clone(),
+                                        post_balances.clone(),
                                     );
                                     let (amount1, decimals1) = get_amt(
+                                        &inner_td.amm,
                                         &inner_td.vault_b,
                                         inner_idx as u32,
                                         &inner_instructions,
                                         &accounts,
                                         &post_token_balances,
                                         "".to_string(),
+                                        pre_balances.clone(),
+                                        post_balances.clone(),
                                     );
                                     let (reserves0, reserves1) = get_reserves(
                                         inner_program,
@@ -308,6 +337,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         &amount0,
                                         &amount1,
                                         &post_token_balances,
+                                        &post_balances,
                                     );
 
                                     data.push(TradeData {
@@ -391,10 +421,30 @@ fn get_trade_instruction(
                     input_accounts,
                 );
         }
-
+        METEORA_POOL_PROGRAM_ADDRESS => {
+            result =
+                dapps::dapp_Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
         ORCA_PROGRAM_ADDRESS => {
             result =
                 dapps::dapp_whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
+        RAYDIUM_CPMM_ADDRESS => {
+            result =
+                dapps::dapp_CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C::parse_trade_instruction(
+                    instruction_data,
+                    input_accounts,
+                );
+        }
+        MOONSHOT_ADDRESS => {
+            result =
+                dapps::dapp_MoonCVVNZFSYkqNXP6bxHLPL6QQJiMagDL3qcqUQTrG::parse_trade_instruction(
                     instruction_data,
                     input_accounts,
                 );
@@ -417,19 +467,22 @@ fn get_reserves(
     amount0: &String,
     amount1: &String,
     post_token_balances: &Vec<TokenBalance>,
+    post_balances: &Vec<u64>,
 ) -> (u64, u64) {
     let (mut reserves0, mut reserves1) = (0, 0);
     match program.as_str() {
         RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
             (reserves0, reserves1) = parse_reserves_instruction(
-                    &"5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1".to_string(),
-                    accounts,
-                    post_token_balances,
-                    vault_a,
-                    vault_b,
-                    token0,
-                    token1,
-                );
+                RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS.to_string(),
+                &"5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1".to_string(),
+                accounts,
+                post_token_balances,
+                post_balances,
+                vault_a,
+                vault_b,
+                token0,
+                token1,
+            );
         }
         // Pump.fun
         PUMP_FUN_AMM_PROGRAM_ADDRESS => {
@@ -444,71 +497,90 @@ fn get_reserves(
         }
         RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS => {
             (reserves0, reserves1) = parse_reserves_instruction(
-                    amm,
-                    accounts,
-                    post_token_balances,
-                    vault_a,
-                    vault_b,
-                    token0,
-                    token1,
-                );
+                RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS.to_string(),
+                amm,
+                accounts,
+                post_token_balances,
+                post_balances,
+                vault_a,
+                vault_b,
+                token0,
+                token1,
+            );
         }
         METEORA_PROGRAM_ADDRESS => {
             (reserves0, reserves1) = parse_reserves_instruction(
-                    amm,
-                    accounts,
-                    post_token_balances,
-                    vault_a,
-                    vault_b,
-                    token0,
-                    token1,
-                );
+                METEORA_PROGRAM_ADDRESS.to_string(),
+                amm,
+                accounts,
+                post_token_balances,
+                post_balances,
+                vault_a,
+                vault_b,
+                token0,
+                token1,
+            );
         }
 
         ORCA_PROGRAM_ADDRESS => {
             (reserves0, reserves1) = parse_reserves_instruction(
-                    amm,
-                    accounts,
-                    post_token_balances,
-                    vault_a,
-                    vault_b,
-                    token0,
-                    token1,
-                );
+                ORCA_PROGRAM_ADDRESS.to_string(),
+                amm,
+                accounts,
+                post_token_balances,
+                post_balances,
+                vault_a,
+                vault_b,
+                token0,
+                token1,
+            );
         }
+
+        RAYDIUM_CPMM_ADDRESS => {
+            (reserves0, reserves1) = parse_reserves_instruction(
+                RAYDIUM_CPMM_ADDRESS.to_string(),
+                &"GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL".to_string(),
+                accounts,
+                post_token_balances,
+                post_balances,
+                vault_a,
+                vault_b,
+                token0,
+                token1,
+            );
+        }
+
+        MOONSHOT_ADDRESS => {
+            (reserves0, reserves1) = parse_reserves_instruction(
+                MOONSHOT_ADDRESS.to_string(),
+                amm,
+                accounts,
+                post_token_balances,
+                post_balances,
+                vault_a,
+                vault_b,
+                token0,
+                token1,
+            );
+        }
+
+        METEORA_POOL_PROGRAM_ADDRESS => {
+            (reserves0, reserves1) = parse_reserves_instruction(
+                METEORA_POOL_PROGRAM_ADDRESS.to_string(),
+                amm,
+                accounts,
+                post_token_balances,
+                post_balances,
+                vault_a,
+                vault_b,
+                token0,
+                token1,
+            );
+        }
+
         _ => {}
     }
     return (reserves0, reserves1);
-}
-
-fn get_pool_instruction(
-    program: &String,
-    instruction_data: Vec<u8>,
-    account_indices: &Vec<u8>,
-    accounts: &Vec<String>,
-) -> Option<CreatePoolInstruction> {
-    let input_accounts = prepare_input_accounts(account_indices, accounts);
-    let mut result = None;
-    match program.as_str() {
-        // Raydium pool v4
-        RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_pool_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
-        }
-        // Pump.fun
-        PUMP_FUN_AMM_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_pool_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
-        }
-        _ => {}
-    }
-    return result;
 }
 
 fn filter_inner_instructions(
@@ -525,71 +597,3 @@ fn filter_inner_instructions(
     return inner_instructions;
 }
 
-#[substreams::handlers::map]
-pub fn map_pools_created(block: Block) -> Result<Pools, Error> {
-    let slot = block.slot;
-    let timestamp = block.block_time.as_ref();
-    let mut data: Vec<Pool> = vec![];
-    if timestamp.is_none() {
-        log::info!("block at slot {} has no timestamp", slot);
-        return Ok(Pools { pools: data });
-    }
-    let timestamp = timestamp.unwrap().timestamp;
-    // iter txs
-    for trx in block.transactions_owned() {
-        // get txs amounts
-        let accounts: Vec<String> = trx
-            .resolved_accounts()
-            .iter()
-            .map(|account| bs58::encode(account).into_string())
-            .collect();
-        if trx.transaction.is_none() {
-            continue;
-        }
-        let transaction = trx.transaction.unwrap();
-        let message = transaction.message.unwrap();
-        for (_, inst) in message.instructions.into_iter().enumerate() {
-            let program = &accounts[inst.program_id_index as usize];
-            let pool_instruction =
-                get_pool_instruction(program, inst.data, &inst.accounts, &accounts);
-            if pool_instruction.is_some() {
-                let p = pool_instruction.unwrap();
-                let mut coin_mint = p.coin_mint;
-                if p.program == PUMP_FUN_AMM_PROGRAM_ADDRESS && coin_mint == "" {
-                    coin_mint = WSOL_ADDRESS.to_string()
-                }
-                if is_not_soltoken(&p.pc_mint,&coin_mint){
-                    continue
-                }
-                data.push(Pool {
-                    program: p.program,
-                    address: p.amm,
-                    created_at_timestamp: timestamp as u64,
-                    created_at_block_number: slot,
-                    coin_mint,
-                    pc_mint: p.pc_mint,
-                    is_pump_fun: p.is_pump_fun,
-                    tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
-                });
-            }
-        }
-    }
-    Ok(Pools { pools: data })
-}
-
-#[substreams::handlers::store]
-pub fn store_sol_prices(swaps: Swaps, store: StoreSetFloat64) {
-    if let Some(trade) = find_sol_stable_coin_trade(&swaps.data) {
-        if let Some(price) = get_wsol_price(
-            &trade.pool_address,
-            &trade.base_mint,
-            &trade.quote_mint,
-            &trade.base_amount,
-            &trade.quote_amount,
-            trade.base_reserves,
-            trade.quote_reserves,
-        ) {
-            store.set(0, WSOL_ADDRESS, &price);
-        }
-    }
-}

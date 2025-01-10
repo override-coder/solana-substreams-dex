@@ -1,9 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use substreams_solana::pb::sf::solana::r#type::v1::{InnerInstructions, TokenBalance};
-use crate::constants::{PUMP_FUN_RAYDIUM_MIGRATION, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS};
-use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
-use crate::utils::{get_mint, WSOL_ADDRESS};
+use substreams_solana::pb::sf::solana::r#type::v1::{ TokenBalance};
+use crate::constants::{RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS};
+use crate::swap::trade_instruction::{ TradeInstruction};
+use crate::utils::{get_mint};
 
 pub const INSTRUCTION_TYPE_INITIALIZE: &str = "initialize";
 pub const INSTRUCTION_TYPE_INITIALIZE2: &str = "initialize2";
@@ -42,31 +42,26 @@ pub fn parse_trade_instruction(
 ) -> Option<TradeInstruction> {
     let discriminator = bytes_stream[0];
 
-    let amm = input_accounts.get(1)?.to_string();
-    let vault_a = get_vault_a(&input_accounts, post_token_balances, accounts);
-    let vault_b = get_vault_b(&input_accounts, post_token_balances, accounts);
-
     match discriminator {
         9 => Some(TradeInstruction {
             program: String::from(RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS),
             name: String::from(INSTRUCTION_TYPE_SWAPBASE_IN),
-            amm,
-            vault_a,
-            vault_b,
+            amm: input_accounts.get(1)?.to_string(),
+            vault_a: get_vault_a(&input_accounts, post_token_balances, accounts),
+            vault_b: get_vault_b(&input_accounts, post_token_balances, accounts),
             ..Default::default()
         }),
         11 => Some(TradeInstruction {
             program: String::from(RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS),
             name: String::from(INSTRUCTION_TYPE_SWAPBASE_OUT),
-            amm,
-            vault_a,
-            vault_b,
+            amm: input_accounts.get(1)?.to_string(),
+            vault_a: get_vault_a(&input_accounts, post_token_balances, accounts),
+            vault_b: get_vault_b(&input_accounts, post_token_balances, accounts),
             ..Default::default()
         }),
         _ => None,
     }
 }
-
 
 fn get_vault_a(
     input_accounts: &Vec<String>,
@@ -106,35 +101,6 @@ fn get_vault_b(
         vault_b = input_accounts.get(vault_b_index).unwrap().to_string();
     }
     return vault_b;
-}
-
-pub fn parse_pool_instruction(
-    bytes_stream: Vec<u8>,
-    input_accounts: Vec<String>,
-) -> Option<CreatePoolInstruction> {
-    let discriminator = bytes_stream[0];
-
-    let amm = input_accounts.get(4)?.to_string();
-    let coin_mint = input_accounts.get(8)?.to_string();
-    let pc_mint = input_accounts.get(9)?.to_string();
-    let is_pump_fun = input_accounts.get(17)?.to_string() == PUMP_FUN_RAYDIUM_MIGRATION;
-
-    match discriminator {
-        0 | 1 => Some(CreatePoolInstruction {
-            program: String::from(RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS),
-            name: match discriminator {
-                0 => String::from(INSTRUCTION_TYPE_INITIALIZE),
-                1 => String::from(INSTRUCTION_TYPE_INITIALIZE2),
-                _ => "Unknown".parse().unwrap(),
-            },
-            amm,
-            coin_mint,
-            pc_mint,
-            is_pump_fun,
-            ..Default::default()
-        }),
-        _ => None,
-    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Default)]

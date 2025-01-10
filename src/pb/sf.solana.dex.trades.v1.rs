@@ -77,7 +77,9 @@ pub struct Pool {
     pub pc_mint: ::prost::alloc::string::String,
     #[prost(bool, tag="7")]
     pub is_pump_fun: bool,
-    #[prost(string, tag="8")]
+    #[prost(bool, tag="8")]
+    pub is_moonshot: bool,
+    #[prost(string, tag="9")]
     pub tx_id: ::prost::alloc::string::String,
 }
 // @@protoc_insertion_point(module)

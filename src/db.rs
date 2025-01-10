@@ -1,13 +1,10 @@
 use std::collections::HashMap;
-use substreams::prelude::StoreGetFloat64;
-use substreams::store::StoreGet;
 use substreams_database_change::tables::Tables;
-use crate::constants::{PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, TOKEN_PROGRAM_ADDRESS};
+use crate::constants::{MOONSHOT_ADDRESS, PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS};
 use crate::pb::sf::solana::dex::jupiter_aggregator::v1::{JupiterSwaps, JupiterTrade};
 use crate::pb::sf::solana::dex::meta::v1::{InputAccounts, TokenMetadataMeta, TokenMetas};
-use crate::pb::sf::solana::dex::spl::v1::{Accounts, Arg, SplTokenMeta, SplTokens};
+use crate::pb::sf::solana::dex::spl::v1::{ SplTokenMeta, SplTokens};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
-use crate::utils::{calculate_price_and_amount_usd, WSOL_ADDRESS};
 
 #[derive(Debug)]
 pub struct Token {
@@ -19,14 +16,14 @@ pub struct Token {
     decimals: i32,
     total_supply: String,
     is_pump_fun: bool,
+    is_moonshot:bool,
     create_dt: i64,
     create_slot: u64,
 }
 
-pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store: &StoreGetFloat64) {
-    let wsol_price = store.get_last(WSOL_ADDRESS);
+pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps) {
     for (index, t) in trade.data.iter().enumerate() {
-        if t.base_amount.parse::<f64>().unwrap_or(0.0) == 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) == 0.0 {
+        if t.base_amount.parse::<f64>().unwrap_or(0.0) == 0.0 || t.quote_amount.parse::<f64>().unwrap_or(0.0) == 0.0 {
             continue;
         }
         if t.base_amount.parse::<f64>().unwrap_or(0.0) > 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) > 0.0 {
@@ -35,25 +32,11 @@ pub fn created_trade_database_changes(tables: &mut Tables, trade: &Swaps, store:
         if t.base_amount.parse::<f64>().unwrap_or(0.0) < 0.0 && t.quote_amount.parse::<f64>().unwrap_or(0.0) < 0.0 {
             continue;
         }
-        create_trade(tables, t, index as u32, wsol_price);
+        create_trade(tables, t, index as u32);
     }
 }
 
-fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_option: Option<f64>) {
-    let (token_price, amount_usdt, wsol_price) = match wsol_price_option {
-        Some(wsol_price) => {
-            calculate_price_and_amount_usd(
-                &data.base_mint,
-                &data.quote_mint,
-                &data.base_amount,
-                &data.quote_amount,
-                data.base_decimals,
-                data.quote_decimals,
-                wsol_price.abs(),
-            )
-        }
-        None => (0.0, 0.0, 0.0),
-    };
+fn create_trade(tables: &mut Tables, data: &TradeData, index: u32) {
     tables.create_row("trade", format!("{}-{}", &data.tx_id, index))
         .set("blockSlot", data.block_slot)
         .set("blockTime", data.block_time)
@@ -70,9 +53,9 @@ fn create_trade(tables: &mut Tables, data: &TradeData, index: u32, wsol_price_op
         .set("quoteDecimals", data.quote_decimals)
         .set("baseReserves", data.base_reserves)
         .set("quoteReserves", data.quote_reserves)
-        .set("price", token_price.to_string())
-        .set("wsolPrice", wsol_price.to_string())
-        .set("amountUSD", amount_usdt.to_string())
+        .set("price", 0)
+        .set("wsolPrice",0)
+        .set("amountUSD", 0)
         .set("isInnerInstruction", data.is_inner_instruction)
         .set("instructionIndex", data.instruction_index)
         .set("instruction_type", &data.instruction_type)
@@ -181,6 +164,7 @@ fn create_token(tables: &mut Tables, token: &Token) {
         .set("uri", &token.uri)
         .set("totalSupply", &token.total_supply)
         .set("isPumpFun", token.is_pump_fun)
+        .set("isMoonShot", token.is_moonshot)
         .set("create_dt", token.create_dt)
         .set("create_slot", token.create_slot);
 }
@@ -206,6 +190,7 @@ fn parse_token_meta(token: SplTokenMeta, meta_map:  &mut HashMap<String, TokenMe
         decimals: arg.decimals().clone(),
         total_supply: "".to_string(),
         is_pump_fun: arg.mint_authority.as_ref().unwrap().to_string() == PUMP_FUN_TOKEN_MINT_AUTHORITY_ADDRESS.to_string(),
+        is_moonshot: token.outer_program.to_string() == MOONSHOT_ADDRESS.to_string(),
         create_dt: token.block_time,
         create_slot: token.block_slot,
     };
@@ -236,31 +221,17 @@ fn create_pool(tables: &mut Tables, pool: &Pool) {
         .set("program", &pool.program)
         .set("coinMint", &pool.coin_mint)
         .set("pcMint", &pool.pc_mint)
-        .set("isPumpFun", pool.is_pump_fun);
+        .set("isPumpFun", pool.is_pump_fun)
+        .set("isMoonShot", pool.is_moonshot);;
 }
 
-pub(crate) fn create_jupiter_swap_database_changes(tables: &mut Tables, swaps: &JupiterSwaps, store: &StoreGetFloat64) {
-    let wsol_price = store.get_last(WSOL_ADDRESS);
+pub(crate) fn create_jupiter_swap_database_changes(tables: &mut Tables, swaps: &JupiterSwaps) {
     for (index, t) in swaps.data.iter().enumerate() {
-        create_jupiter_trade(tables, t, index as u32, wsol_price);
+        create_jupiter_trade(tables, t, index as u32);
     }
 }
 
-fn create_jupiter_trade(tables: &mut Tables, j: &JupiterTrade, index: u32, wsol_price_option: Option<f64>) {
-        let (token_price, amount_usdt, wsol_price) = match wsol_price_option {
-            Some(wsol_price) => {
-                calculate_price_and_amount_usd(
-                    &j.source_mint,
-                    &j.destination_mint,
-                    &j.in_amount,
-                    &j.quoted_out_amount,
-                    j.in_decimals,
-                    j.quoted_decimals,
-                    wsol_price,
-                )
-            }
-            None => (0.0, 0.0, 0.0),
-        };
+fn create_jupiter_trade(tables: &mut Tables, j: &JupiterTrade, index: u32) {
         tables.create_row("jupiter", format!("{}-{}", &j.tx_id, index))
             .set("blockSlot", j.block_slot)
             .set("blockTime", j.block_time)
@@ -274,9 +245,9 @@ fn create_jupiter_trade(tables: &mut Tables, j: &JupiterTrade, index: u32, wsol_
             .set("quotedOutAmount", &j.quoted_out_amount)
             .set("baseDecimals", j.in_decimals)
             .set("quoteDecimals", j.quoted_decimals)
-            .set("price", token_price.to_string())
-            .set("wsolPrice", wsol_price.to_string())
-            .set("amountUSD", amount_usdt.to_string())
+            .set("price", 0)
+            .set("wsolPrice", 0)
+            .set("amountUSD",0)
             .set("instructionType", &j.instruction_type);
 }
 

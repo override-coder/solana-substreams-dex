@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use substreams_solana::pb::sf::solana::r#type::v1::InnerInstructions;
 use crate::constants::PUMP_FUN_AMM_PROGRAM_ADDRESS;
-use crate::swap::trade_instruction::{CreatePoolInstruction, TradeInstruction};
+use crate::swap::trade_instruction::{ TradeInstruction};
 use crate::utils::WSOL_ADDRESS;
 
 const BUY_DISCRIMINATOR: u64 = u64::from_le_bytes([102, 6, 61, 18, 1, 218, 235, 234]);
@@ -53,31 +53,6 @@ pub fn parse_trade_instruction(
     }
     None
 }
-pub fn parse_pool_instruction(
-    bytes_stream: Vec<u8>,
-    accounts: Vec<String>,
-) -> Option<CreatePoolInstruction> {
-    let (disc_bytes, _) = bytes_stream.split_at(8);
-    let discriminator: u64 = u64::from_le_bytes(disc_bytes.try_into().unwrap());
-
-    if discriminator == CREATE_DISCRIMINATOR {
-        let amm = accounts.get(2)?.to_string();
-        let pc_mint = accounts.get(0)?.to_string();
-        let is_pump_fun = accounts.get(13)? == PUMP_FUN_AMM_PROGRAM_ADDRESS;
-
-        return Some(CreatePoolInstruction {
-            program: PUMP_FUN_AMM_PROGRAM_ADDRESS.to_string(),
-            name: "create".to_string(),
-            amm,
-            coin_mint: String::new(),
-            pc_mint,
-            is_pump_fun,
-            ..Default::default()
-        });
-    }
-    None
-}
-
 
 pub fn parse_reserves_instruction(
     inner_instructions: &Vec<InnerInstructions>,

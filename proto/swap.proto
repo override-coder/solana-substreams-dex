@@ -46,5 +46,6 @@ message Pool {
     string coin_mint = 5;
     string pc_mint = 6;
     bool is_pump_fun = 7;
-    string tx_id = 8;
+    bool is_moonshot = 8;
+    string tx_id = 9;
 }
