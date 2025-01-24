@@ -1,11 +1,17 @@
-use crate::constants::{METEORA_POOL_PROGRAM_ADDRESS, METEORA_PROGRAM_ADDRESS, MOONSHOT_ADDRESS, ORCA_PROGRAM_ADDRESS, PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, RAYDIUM_CPMM_ADDRESS, RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS};
+use crate::constants::{
+    METEORA_POOL_PROGRAM_ADDRESS, METEORA_PROGRAM_ADDRESS, MOONSHOT_ADDRESS, ORCA_PROGRAM_ADDRESS,
+    PUMP_FUN_AMM_PROGRAM_ADDRESS, RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS, RAYDIUM_CPMM_ADDRESS,
+    RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS,
+};
 use crate::pb::sf::solana::dex::trades::v1::{Pool, Pools, Swaps, TradeData};
 use crate::swap::dapps;
 use crate::swap::trade_instruction::TradeInstruction;
 use crate::utils::{
-    find_sol_stable_coin_trade, get_amt, get_mint, is_not_soltoken, parse_reserves_instruction,
-    prepare_input_accounts, WSOL_ADDRESS,
+    find_sol_stable_coin_trade, get_amt, get_mint, is_not_soltoken, parse_reserves_instruction, prepare_input_accounts,
+    WSOL_ADDRESS,
 };
+
+static EMPTY_STRING: String = String::new();
 
 use std::string::ToString;
 use substreams::errors::Error;
@@ -50,36 +56,20 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                 filter_inner_instructions(&meta.inner_instructions, idx as u32);
             let program = &accounts[inst.program_id_index as usize];
             let log_message = &meta.log_messages;
-            let trade_data = get_trade_instruction(
-                program,
-                &inst.data,
-                &inst.accounts,
-                &accounts,
-                &post_token_balances,
-            );
+            let trade_data =
+                get_trade_instruction(program, &inst.data, &inst.accounts, &accounts, &post_token_balances);
             if trade_data.is_some() {
                 let td = trade_data.unwrap();
                 let td_name = td.name;
                 let td_dapp_address = td.program;
 
-                let mut token0 = get_mint(
-                    &td.vault_a,
-                    &post_token_balances,
-                    &accounts,
-                    td_dapp_address.clone(),
-                );
+                let mut token0 = get_mint(&td.vault_a, &post_token_balances, &accounts, &td_dapp_address);
                 if token0 == "" {
-                    token0 = get_mint(
-                        &td.vault_a,
-                        &pre_token_balances,
-                        &accounts,
-                        td_dapp_address.clone(),
-                    );
+                    token0 = get_mint(&td.vault_a, &pre_token_balances, &accounts, &td_dapp_address);
                 }
-                let mut token1 =
-                    get_mint(&td.vault_b, &pre_token_balances, &accounts, "".to_string());
+                let mut token1 = get_mint(&td.vault_b, &pre_token_balances, &accounts, &"".to_string());
                 if token1 == "" {
-                    token1 = get_mint(&td.vault_b, &post_token_balances, &accounts, "".to_string());
+                    token1 = get_mint(&td.vault_b, &post_token_balances, &accounts, &"".to_string());
                 }
 
                 // exclude trading pairs that are not sol
@@ -94,9 +84,9 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     &inner_instructions,
                     &accounts,
                     &post_token_balances,
-                    td_dapp_address.clone(),
-                    pre_balances.clone(),
-                    post_balances.clone(),
+                    &td_dapp_address,
+                    &pre_balances,
+                    &post_balances,
                 );
                 let (amount1, decimals1) = get_amt(
                     &td.amm,
@@ -105,9 +95,9 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     &inner_instructions,
                     &accounts,
                     &post_token_balances,
-                    "".to_string(),
-                    pre_balances.clone(),
-                    post_balances.clone(),
+                    &EMPTY_STRING,
+                    &pre_balances,
+                    &post_balances,
                 );
 
                 let (reserves0, reserves1) = get_reserves(
@@ -131,7 +121,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                     block_slot: slot,
                     block_time: timestamp,
                     signer: accounts.get(0).unwrap().to_string(),
-                    pool_address: td.amm.clone().to_string(),
+                    pool_address: td.amm.clone(),
                     base_mint: token0,
                     quote_mint: token1,
                     base_amount: amount0,
@@ -153,31 +143,31 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
 
                 if td.second_swap_amm.clone().unwrap_or_default() != "" {
                     let mut token0 = get_mint(
-                        &td.second_swap_vault_a.clone().unwrap(),
+                        td.second_swap_vault_a.as_ref().unwrap(),
                         &post_token_balances,
                         &accounts,
-                        td_dapp_address.clone(),
+                        &td_dapp_address,
                     );
                     if token0 == "" {
                         token0 = get_mint(
-                            &td.second_swap_vault_a.clone().unwrap(),
+                            td.second_swap_vault_a.as_ref().unwrap(),
                             &pre_token_balances,
                             &accounts,
-                            td_dapp_address.clone(),
+                            &td_dapp_address,
                         );
                     }
                     let mut token1 = get_mint(
                         &td.second_swap_vault_b.clone().unwrap(),
                         &pre_token_balances,
                         &accounts,
-                        "".to_string(),
+                        &EMPTY_STRING,
                     );
                     if token1 == "" {
                         token1 = get_mint(
                             &td.second_swap_vault_b.clone().unwrap(),
                             &post_token_balances,
                             &accounts,
-                            "".to_string(),
+                            &EMPTY_STRING,
                         );
                     }
 
@@ -193,9 +183,9 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                         &inner_instructions,
                         &accounts,
                         &post_token_balances,
-                        td_dapp_address.clone(),
-                        pre_balances.clone(),
-                        post_balances.clone(),
+                        &td_dapp_address,
+                        &pre_balances,
+                        &post_balances,
                     );
                     let (amount1, decimals1) = get_amt(
                         &td.amm,
@@ -204,15 +194,15 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                         &inner_instructions,
                         &accounts,
                         &post_token_balances,
-                        "".to_string(),
-                        pre_balances.clone(),
-                        post_balances.clone(),
+                        &EMPTY_STRING,
+                        &pre_balances,
+                        &post_balances,
                     );
                     let (reserves0, reserves1) = get_reserves(
                         program,
-                        &td.second_swap_amm.clone().unwrap(),
-                        &td.second_swap_vault_a.clone().unwrap(),
-                        &td.second_swap_vault_b.clone().unwrap(),
+                        td.second_swap_amm.as_ref().unwrap(),
+                        td.second_swap_vault_a.as_ref().unwrap(),
+                        td.second_swap_vault_b.as_ref().unwrap(),
                         &inner_instructions,
                         log_message,
                         &accounts,
@@ -229,7 +219,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                         block_slot: slot,
                         block_time: timestamp,
                         signer: accounts.get(0).unwrap().to_string(),
-                        pool_address: td.second_swap_amm.clone().unwrap(),
+                        pool_address: td.second_swap_amm.unwrap(),
                         base_mint: token0,
                         quote_mint: token1,
                         base_amount: amount0,
@@ -238,13 +228,13 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                         quote_reserves: reserves1,
                         base_decimals: decimals0,
                         quote_decimals: decimals1,
-                        base_vault: td.second_swap_vault_a.clone().unwrap(),
-                        quote_vault: td.second_swap_vault_b.clone().unwrap(),
+                        base_vault: td.second_swap_vault_a.unwrap(),
+                        quote_vault: td.second_swap_vault_b.unwrap(),
                         is_inner_instruction: false,
                         instruction_index: idx as u32,
                         instruction_type: td_name.clone(),
                         inner_instruxtion_index: 0,
-                        outer_program: td_dapp_address.clone(),
+                        outer_program: td_dapp_address,
                         inner_program: "".to_string(),
                         txn_fee_lamports: meta.fee,
                     });
@@ -255,8 +245,11 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                 .iter()
                 .filter(|inner_instruction| inner_instruction.index == idx as u32)
                 .for_each(|inner_instruction| {
-                    inner_instruction.instructions.iter().enumerate().for_each(
-                        |(inner_idx, inner_inst)| {
+                    inner_instruction
+                        .instructions
+                        .iter()
+                        .enumerate()
+                        .for_each(|(inner_idx, inner_inst)| {
                             let inner_program = &accounts[inner_inst.program_id_index as usize];
                             let inner_trade_data = get_trade_instruction(
                                 inner_program,
@@ -275,29 +268,21 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                     &inner_td.vault_a,
                                     &pre_token_balances,
                                     &accounts,
-                                    inner_td_dapp_address.clone(),
+                                    &inner_td_dapp_address,
                                 );
                                 if token0 == "" {
                                     token0 = get_mint(
                                         &inner_td.vault_a,
                                         &post_token_balances,
                                         &accounts,
-                                        inner_td_dapp_address.clone(),
+                                        &inner_td_dapp_address,
                                     );
                                 }
-                                let mut token1 = get_mint(
-                                    &inner_td.vault_b,
-                                    &pre_token_balances,
-                                    &accounts,
-                                    "".to_string(),
-                                );
+                                let mut token1 =
+                                    get_mint(&inner_td.vault_b, &pre_token_balances, &accounts, &EMPTY_STRING);
                                 if token1 == "" {
-                                    token1 = get_mint(
-                                        &inner_td.vault_b,
-                                        &post_token_balances,
-                                        &accounts,
-                                        "".to_string(),
-                                    );
+                                    token1 =
+                                        get_mint(&inner_td.vault_b, &post_token_balances, &accounts, &EMPTY_STRING);
                                 }
 
                                 // exclude trading pairs that are not sol
@@ -309,9 +294,9 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         &inner_instructions,
                                         &accounts,
                                         &post_token_balances,
-                                        inner_td_dapp_address.clone(),
-                                        pre_balances.clone(),
-                                        post_balances.clone(),
+                                        &inner_td_dapp_address,
+                                        &pre_balances,
+                                        &post_balances,
                                     );
                                     let (amount1, decimals1) = get_amt(
                                         &inner_td.amm,
@@ -320,9 +305,9 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         &inner_instructions,
                                         &accounts,
                                         &post_token_balances,
-                                        "".to_string(),
-                                        pre_balances.clone(),
-                                        post_balances.clone(),
+                                        &EMPTY_STRING,
+                                        &pre_balances,
+                                        &post_balances,
                                     );
                                     let (reserves0, reserves1) = get_reserves(
                                         inner_program,
@@ -341,8 +326,7 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                     );
 
                                     data.push(TradeData {
-                                        tx_id: bs58::encode(&transaction.signatures[0])
-                                            .into_string(),
+                                        tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
                                         block_slot: slot,
                                         block_time: timestamp,
                                         signer: accounts.get(0).unwrap().to_string(),
@@ -359,16 +343,15 @@ fn process_block(block: Block) -> Result<Swaps, Error> {
                                         quote_vault: inner_td.vault_b,
                                         is_inner_instruction: true,
                                         instruction_index: idx as u32,
-                                        instruction_type: inner_td_name.clone(),
+                                        instruction_type: inner_td_name,
                                         inner_instruxtion_index: inner_idx as u32,
-                                        outer_program: program.to_string(),
-                                        inner_program: inner_td_dapp_address.clone(),
+                                        outer_program: program.clone(),
+                                        inner_program: inner_td_dapp_address,
                                         txn_fee_lamports: meta.fee,
                                     });
                                 }
                             }
-                        },
-                    )
+                        })
                 });
         }
     }
@@ -389,65 +372,57 @@ fn get_trade_instruction(
     match program.as_str() {
         // Raydium pool v4
         RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                    &post_token_balances,
-                    accounts,
-                );
+            result = dapps::dapp_675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+                &post_token_balances,
+                accounts,
+            );
         }
         // Pump.fun
         PUMP_FUN_AMM_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
+            result = dapps::dapp_6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+            );
         }
 
         RAYDIUM_CONCENTRATED_CAMM_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
+            result = dapps::dapp_CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+            );
         }
 
         METEORA_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
+            result = dapps::dapp_LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+            );
         }
         METEORA_POOL_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
+            result = dapps::dapp_Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+            );
         }
         ORCA_PROGRAM_ADDRESS => {
-            result =
-                dapps::dapp_whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
+            result = dapps::dapp_whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+            );
         }
         RAYDIUM_CPMM_ADDRESS => {
-            result =
-                dapps::dapp_CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
+            result = dapps::dapp_CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+            );
         }
         MOONSHOT_ADDRESS => {
-            result =
-                dapps::dapp_MoonCVVNZFSYkqNXP6bxHLPL6QQJiMagDL3qcqUQTrG::parse_trade_instruction(
-                    instruction_data,
-                    input_accounts,
-                );
+            result = dapps::dapp_MoonCVVNZFSYkqNXP6bxHLPL6QQJiMagDL3qcqUQTrG::parse_trade_instruction(
+                instruction_data,
+                &input_accounts,
+            );
         }
         _ => {}
     }
@@ -583,10 +558,7 @@ fn get_reserves(
     return (reserves0, reserves1);
 }
 
-fn filter_inner_instructions(
-    meta_inner_instructions: &Vec<InnerInstructions>,
-    idx: u32,
-) -> Vec<InnerInstructions> {
+fn filter_inner_instructions(meta_inner_instructions: &Vec<InnerInstructions>, idx: u32) -> Vec<InnerInstructions> {
     let mut inner_instructions: Vec<InnerInstructions> = vec![];
     let mut iterator = meta_inner_instructions.iter();
     while let Some(inner_inst) = iterator.next() {
@@ -596,4 +568,3 @@ fn filter_inner_instructions(
     }
     return inner_instructions;
 }
-

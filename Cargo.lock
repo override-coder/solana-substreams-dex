@@ -619,6 +619,7 @@ dependencies = [
  "num-bigint",
  "once_cell",
  "prost",
+ "prost-types",
  "serde",
  "serde_json",
  "substreams",
