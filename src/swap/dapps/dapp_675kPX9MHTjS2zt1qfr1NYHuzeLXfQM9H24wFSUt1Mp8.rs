@@ -1,9 +1,13 @@
+use std::f32::consts::E;
+
+use crate::constants::RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS;
+use crate::swap::trade_instruction::TradeInstruction;
+use crate::utils::get_mint;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use substreams_solana::pb::sf::solana::r#type::v1::{ TokenBalance};
-use crate::constants::{RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS};
-use crate::swap::trade_instruction::{ TradeInstruction};
-use crate::utils::{get_mint};
+use substreams_solana::pb::sf::solana::r#type::v1::TokenBalance;
+
+use super::EMPTY_STRING;
 
 pub const INSTRUCTION_TYPE_INITIALIZE: &str = "initialize";
 pub const INSTRUCTION_TYPE_INITIALIZE2: &str = "initialize2";
@@ -36,7 +40,7 @@ pub struct SwapBaseOutLog {
 
 pub fn parse_trade_instruction(
     bytes_stream: &Vec<u8>,
-    input_accounts: Vec<String>,
+    input_accounts: &Vec<&String>,
     post_token_balances: &Vec<TokenBalance>,
     accounts: &Vec<String>,
 ) -> Option<TradeInstruction> {
@@ -47,8 +51,8 @@ pub fn parse_trade_instruction(
             program: String::from(RAYDIUM_POOL_V4_AMM_PROGRAM_ADDRESS),
             name: String::from(INSTRUCTION_TYPE_SWAPBASE_IN),
             amm: input_accounts.get(1)?.to_string(),
-            vault_a: get_vault_a(&input_accounts, post_token_balances, accounts),
-            vault_b: get_vault_b(&input_accounts, post_token_balances, accounts),
+            vault_a: get_vault_a(input_accounts, post_token_balances, accounts),
+            vault_b: get_vault_b(input_accounts, post_token_balances, accounts),
             ..Default::default()
         }),
         11 => Some(TradeInstruction {
@@ -64,12 +68,12 @@ pub fn parse_trade_instruction(
 }
 
 fn get_vault_a(
-    input_accounts: &Vec<String>,
+    input_accounts: &Vec<&String>,
     post_token_balances: &Vec<TokenBalance>,
     accounts: &Vec<String>,
 ) -> String {
     let mut vault_a = input_accounts.get(4).unwrap().to_string();
-    let mint_a = get_mint(&vault_a, post_token_balances, accounts,"".to_string());
+    let mint_a = get_mint(&vault_a, post_token_balances, accounts, &EMPTY_STRING);
 
     if mint_a.is_empty() {
         vault_a = input_accounts.get(5).unwrap().to_string();
@@ -79,14 +83,14 @@ fn get_vault_a(
 }
 
 fn get_vault_b(
-    input_accounts: &Vec<String>,
+    input_accounts: &Vec<&String>,
     post_token_balances: &Vec<TokenBalance>,
     accounts: &Vec<String>,
 ) -> String {
     let mut vault_a_index = 4;
 
     let mut vault_a = input_accounts.get(4).unwrap().to_string();
-    let mint_a = get_mint(&vault_a, post_token_balances, accounts,"".to_string());
+    let mint_a = get_mint(&vault_a, post_token_balances, accounts, &EMPTY_STRING);
 
     if mint_a.is_empty() {
         vault_a_index += 1;
@@ -106,17 +110,14 @@ fn get_vault_b(
 #[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct SwapEvent {
     pool_coin: String,
-    pool_pc : String
+    pool_pc: String,
 }
 
 pub fn parse_logs(log_messages: &Vec<String>) -> Vec<String> {
     let mut results: Vec<String> = Vec::new();
     for log_message in log_messages {
         if log_message.starts_with("Program log: ") && log_message.contains("ray_log") {
-            let swap_log_value = log_message
-                .replace("Program log: ray_log: ", "")
-                .trim()
-                .to_string();
+            let swap_log_value = log_message.replace("Program log: ray_log: ", "").trim().to_string();
             results.push(swap_log_value);
         }
     }

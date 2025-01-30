@@ -1,22 +1,14 @@
-use substreams_solana::pb::sf::solana::r#type::v1::{Block, TokenBalance};
 use crate::constants;
-use crate::constants::{RAYDIUM_AUTHORITY_V4};
+use crate::constants::RAYDIUM_AUTHORITY_V4;
 use crate::pb::sf::solana::dex::spl::v1::{Accounts, Arg, SplTokenMeta, SplTokens};
 use crate::spl_token::spl_token_instruction::{
-    parse_instruction,
-    Instruction,
-    INSTRUCTION_TYPE_TRANSFER,
-    INSTRUCTION_TYPE_APPROVE,
-    INSTRUCTION_TYPE_TRANSFER_CHECKED,
-    INSTRUCTION_TYPE_APPROVE_CHECKED,
-    INSTRUCTION_TYPE_INITIALIZE_MINT,
-    INSTRUCTION_TYPE_INITIALIZE_MINT2,
-    INSTRUCTION_TYPE_MINT_TO,
-    INSTRUCTION_TYPE_MINT_TO_CHECKED,
+    parse_instruction, Instruction, INSTRUCTION_TYPE_APPROVE, INSTRUCTION_TYPE_APPROVE_CHECKED,
+    INSTRUCTION_TYPE_INITIALIZE_MINT, INSTRUCTION_TYPE_INITIALIZE_MINT2, INSTRUCTION_TYPE_MINT_TO,
+    INSTRUCTION_TYPE_MINT_TO_CHECKED, INSTRUCTION_TYPE_TRANSFER, INSTRUCTION_TYPE_TRANSFER_CHECKED,
     INSTRUCTION_TYPE_UNKNOWN,
-
 };
 use crate::utils::{convert_to_date, get_b58_string, prepare_input_accounts};
+use substreams_solana::pb::sf::solana::r#type::v1::{Block, TokenBalance};
 
 #[substreams::handlers::map]
 fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
@@ -29,7 +21,10 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
     }
     let timestamp = timestamp.unwrap().timestamp;
     for trx in block.transactions_owned() {
-        let accounts:Vec<String> = trx.resolved_accounts().iter().map(|account| bs58::encode(account).into_string())
+        let accounts: Vec<String> = trx
+            .resolved_accounts()
+            .iter()
+            .map(|account| bs58::encode(account).into_string())
             .collect();
         if let Some(transaction) = trx.transaction {
             let meta = trx.meta.unwrap();
@@ -38,7 +33,7 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
             for (idx, inst) in msg.instructions.into_iter().enumerate() {
                 let program = &accounts[inst.program_id_index as usize];
                 if program == constants::TOKEN_PROGRAM_ADDRESS {
-                    let outer_arg = get_outer_arg(inst.data, &inst.accounts, &accounts);
+                    let outer_arg = get_outer_arg(&inst.data, &inst.accounts, &accounts);
                     let obj: SplTokenMeta = SplTokenMeta {
                         block_date: convert_to_date(timestamp),
                         block_time: timestamp,
@@ -54,30 +49,27 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
                         args: outer_arg.arg,
                     };
                     if filter_token(&obj) {
-                        continue
+                        continue;
                     }
                     data.push(handle_mints(obj, &pre_token_balances, &accounts));
-
                 }
 
                 meta.inner_instructions
                     .iter()
                     .filter(|inner_instruction| inner_instruction.index == idx as u32)
                     .for_each(|inner_instruction| {
-                        inner_instruction.instructions.iter().enumerate().for_each(
-                            |(inner_idx, inner_inst)| {
+                        inner_instruction
+                            .instructions
+                            .iter()
+                            .enumerate()
+                            .for_each(|(inner_idx, inner_inst)| {
                                 let inner_program = &accounts[inner_inst.program_id_index as usize];
                                 if inner_program == constants::TOKEN_PROGRAM_ADDRESS {
-                                    let outer_arg = get_outer_arg(
-                                        inner_inst.data.clone(),
-                                        &inner_inst.accounts,
-                                        &accounts,
-                                    );
+                                    let outer_arg = get_outer_arg(&inner_inst.data, &inner_inst.accounts, &accounts);
                                     let obj: SplTokenMeta = SplTokenMeta {
                                         block_date: convert_to_date(timestamp),
                                         block_time: timestamp,
-                                        tx_id: bs58::encode(&transaction.signatures[0])
-                                            .into_string(),
+                                        tx_id: bs58::encode(&transaction.signatures[0]).into_string(),
                                         dapp: constants::TOKEN_PROGRAM_ADDRESS.to_string(),
                                         block_slot: slot,
                                         instruction_index: idx as u32,
@@ -92,8 +84,7 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
                                         data.push(handle_mints(obj, &pre_token_balances, &accounts));
                                     }
                                 }
-                            },
-                        )
+                            })
                     });
             }
         }
@@ -101,11 +92,7 @@ fn map_spl_token(block: Block) -> Result<SplTokens, substreams::errors::Error> {
     Ok(SplTokens { data })
 }
 
-fn handle_mints(
-    mut obj: SplTokenMeta,
-    pre_token_balances: &Vec<TokenBalance>,
-    accounts: &Vec<String>,
-) -> SplTokenMeta {
+fn handle_mints(mut obj: SplTokenMeta, pre_token_balances: &Vec<TokenBalance>, accounts: &Vec<String>) -> SplTokenMeta {
     if obj.instruction_type == INSTRUCTION_TYPE_TRANSFER {
         if let Some(input_accounts) = &mut obj.input_accounts {
             let index = accounts
@@ -124,14 +111,16 @@ fn handle_mints(
 }
 
 fn filter_token(mut obj: &SplTokenMeta) -> bool {
-    if obj.instruction_type == INSTRUCTION_TYPE_UNKNOWN  {
-        return true
+    if obj.instruction_type == INSTRUCTION_TYPE_UNKNOWN {
+        return true;
     }
-    if obj.instruction_type == INSTRUCTION_TYPE_INITIALIZE_MINT || obj.instruction_type == INSTRUCTION_TYPE_INITIALIZE_MINT2 {
+    if obj.instruction_type == INSTRUCTION_TYPE_INITIALIZE_MINT
+        || obj.instruction_type == INSTRUCTION_TYPE_INITIALIZE_MINT2
+    {
         if let Some(args) = &obj.args {
             // todo most filter ing
             if args.decimals == Some(0) || args.mint_authority == Some(RAYDIUM_AUTHORITY_V4.to_string()) {
-               return  true;
+                return true;
             }
         }
     }
@@ -150,15 +139,11 @@ pub struct OuterArg {
     pub arg: Option<Arg>,
 }
 
-fn get_outer_arg(
-    instruction_data: Vec<u8>,
-    account_indices: &Vec<u8>,
-    accounts: &Vec<String>,
-) -> OuterArg {
+fn get_outer_arg(instruction_data: &Vec<u8>, account_indices: &Vec<u8>, accounts: &Vec<String>) -> OuterArg {
     let account_args = prepare_input_accounts(account_indices, accounts);
     let mut outer_arg: OuterArg = OuterArg::default();
     let mut arg: Arg = Arg::default();
-    let instruction: Instruction = parse_instruction(instruction_data, account_args);
+    let instruction: Instruction = parse_instruction(instruction_data, &account_args);
 
     outer_arg.input_accounts = Some(Accounts {
         mint: Some(instruction.instruction_accounts.mint),
@@ -171,9 +156,7 @@ fn get_outer_arg(
         delegate: Some(instruction.instruction_accounts.delegate),
         authority: Some(instruction.instruction_accounts.authority),
         payer: Some(instruction.instruction_accounts.payer),
-        fund_relocation_sys_program: Some(
-            instruction.instruction_accounts.fund_relocation_sys_program,
-        ),
+        fund_relocation_sys_program: Some(instruction.instruction_accounts.fund_relocation_sys_program),
         funding_account: Some(instruction.instruction_accounts.funding_account),
         mint_funding_sys_program: Some(instruction.instruction_accounts.mint_funding_sys_program),
     });
@@ -202,14 +185,12 @@ fn get_outer_arg(
         INSTRUCTION_TYPE_INITIALIZE_MINT => {
             outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_INITIALIZE_MINT);
             arg.decimals = Some(i32::from(instruction.initialize_mint_args.decimals));
-            arg.mint_authority =
-                get_b58_string(instruction.initialize_mint_args.mint_authority.value);
+            arg.mint_authority = get_b58_string(instruction.initialize_mint_args.mint_authority.value);
         }
         INSTRUCTION_TYPE_INITIALIZE_MINT2 => {
             outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_INITIALIZE_MINT2);
             arg.decimals = Some(i32::from(instruction.initialize_mint2args.decimals));
-            arg.mint_authority =
-                get_b58_string(instruction.initialize_mint2args.mint_authority.value);
+            arg.mint_authority = get_b58_string(instruction.initialize_mint2args.mint_authority.value);
         }
         INSTRUCTION_TYPE_MINT_TO => {
             outer_arg.instruction_type = String::from(INSTRUCTION_TYPE_MINT_TO);

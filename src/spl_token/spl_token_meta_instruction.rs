@@ -1,14 +1,15 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use crate::pb::sf::solana::dex::meta::v1::{Arg, InputAccounts, PbAssetDataLayout, PbCollectionDetailsLayout, PbCollectionLayout, PbCreateArgsLayout, PbCreateMetadataAccountArgsLayout, PbCreateMetadataAccountArgsV2Layout, PbCreateMetadataAccountArgsV3Layout, PbCreatorLayout, PbDataLayout, PbDataV2Layout, PbPrintSupplyLayout, PbUsesLayout};
+use crate::pb::sf::solana::dex::meta::v1::{
+    Arg, InputAccounts, PbAssetDataLayout, PbCollectionDetailsLayout, PbCollectionLayout, PbCreateArgsLayout,
+    PbCreateMetadataAccountArgsLayout, PbCreateMetadataAccountArgsV2Layout, PbCreateMetadataAccountArgsV3Layout,
+    PbCreatorLayout, PbDataLayout, PbDataV2Layout, PbPrintSupplyLayout, PbUsesLayout,
+};
 use crate::utils::get_b58_string;
-
+use borsh::{BorshDeserialize, BorshSerialize};
 
 pub const INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT: &str = "CreateMetadataAccount";
 pub const INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V2: &str = "CreateMetadataAccountV2";
 pub const INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V3: &str = "CreateMetadataAccountV3";
 pub const INSTRUCTION_TYPE_CREATE: &str = "Create";
-
-
 
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone, Default, Copy)]
 pub struct PubKeyLayout {
@@ -175,7 +176,6 @@ impl CreateArgsLayoutName {
     }
 }
 
-
 #[derive(BorshDeserialize, Debug, Default)]
 #[repr(u8)]
 pub enum TokenStandardLayout {
@@ -275,7 +275,6 @@ impl AssetDataLayout {
     }
 }
 
-
 #[derive(BorshDeserialize, Debug, Default)]
 pub struct PrintSupplyLayout {
     pub name: PrintSupplyLayoutName,
@@ -299,10 +298,7 @@ impl PrintSupplyLayout {
             }
         }
 
-        PbPrintSupplyLayout {
-            name: name,
-            val: val,
-        }
+        PbPrintSupplyLayout { name: name, val: val }
     }
 }
 
@@ -359,7 +355,6 @@ impl CreateMetadataAccountArgsLayout {
         }
     }
 }
-
 
 #[derive(BorshDeserialize, Debug, Default)]
 pub struct DataV2Layout {
@@ -440,7 +435,6 @@ impl CreateMetadataAccountArgsV3Layout {
     }
 }
 
-
 #[derive(Debug, Default)]
 pub struct Instruction {
     pub instruction_type: String,
@@ -450,7 +444,7 @@ pub struct Instruction {
     pub create_metadata_account_args_v3: CreateMetadataAccountArgsV3Layout,
 }
 
-pub fn parse_instruction(bytes_stream: Vec<u8>) -> Instruction {
+pub fn parse_instruction(bytes_stream: &Vec<u8>) -> Instruction {
     let mut result: Instruction = Instruction::default();
 
     let (disc_bytes, rest) = bytes_stream.split_at(1);
@@ -459,10 +453,9 @@ pub fn parse_instruction(bytes_stream: Vec<u8>) -> Instruction {
 
     match discriminator {
         0 => {
-            result.instruction_type =INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT.to_string();
+            result.instruction_type = INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT.to_string();
             if rest_bytes.len() > 0 {
-                result.create_metadata_account_args =
-                    CreateMetadataAccountArgsLayout::deserialize(rest_bytes).unwrap();
+                result.create_metadata_account_args = CreateMetadataAccountArgsLayout::deserialize(rest_bytes).unwrap();
             }
         }
         16 => {
@@ -482,7 +475,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>) -> Instruction {
         42 => {
             result.instruction_type = INSTRUCTION_TYPE_CREATE.to_string();
             if rest_bytes.len() > 0 {
-               result.create_args = CreateArgsLayout::deserialize(rest_bytes).unwrap_or(CreateArgsLayout::default());
+                result.create_args = CreateArgsLayout::deserialize(rest_bytes).unwrap_or(CreateArgsLayout::default());
             }
         }
         _ => {}
@@ -490,24 +483,21 @@ pub fn parse_instruction(bytes_stream: Vec<u8>) -> Instruction {
     return result;
 }
 
-pub fn prepare_arg(instruction_data: Vec<u8>, tx_id: String) -> Arg {
+pub fn prepare_arg(instruction_data: &Vec<u8>) -> Arg {
     let mut arg: Arg = Arg::default();
-    let mut instruction: Instruction = parse_instruction(instruction_data);
+    let mut instruction: Instruction = parse_instruction(&instruction_data);
 
     arg.instruction_type = instruction.instruction_type;
 
     match arg.instruction_type.as_str() {
         INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT => {
-            arg.create_metadata_account_args =
-                Some(instruction.create_metadata_account_args.to_proto_struct());
+            arg.create_metadata_account_args = Some(instruction.create_metadata_account_args.to_proto_struct());
         }
         INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V2 => {
-            arg.create_metadata_account_args_v2 =
-                Some(instruction.create_metadata_account_args_v2.to_proto_struct());
+            arg.create_metadata_account_args_v2 = Some(instruction.create_metadata_account_args_v2.to_proto_struct());
         }
         INSTRUCTION_TYPE_CREATE_METADATA_ACCOUNT_V3 => {
-            arg.create_metadata_account_args_v3 =
-                Some(instruction.create_metadata_account_args_v3.to_proto_struct());
+            arg.create_metadata_account_args_v3 = Some(instruction.create_metadata_account_args_v3.to_proto_struct());
         }
         INSTRUCTION_TYPE_CREATE => {
             arg.create_args = Some(instruction.create_args.to_proto_struct());
@@ -516,7 +506,6 @@ pub fn prepare_arg(instruction_data: Vec<u8>, tx_id: String) -> Arg {
     }
     return arg;
 }
-
 
 pub fn prepare_input_accounts(
     instruction_type: String,

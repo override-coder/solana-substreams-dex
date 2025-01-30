@@ -66,7 +66,6 @@ pub struct InitializeMint2Layout {
     pub mint_authority: PubkeyLayout,
 }
 
-
 #[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct ReallocateLayout {}
 
@@ -101,7 +100,7 @@ pub struct Instruction {
     pub initialize_mint2args: InitializeMint2Layout,
 }
 
-pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instruction {
+pub fn parse_instruction(bytes_stream: &Vec<u8>, accounts: &Vec<&String>) -> Instruction {
     let mut instruction_name = String::default();
     let mut instruction_accounts = InstructionAccounts::default();
 
@@ -113,7 +112,6 @@ pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instru
     let mut approve_checked_args: ApproveCheckedLayout = ApproveCheckedLayout::default();
     let mut mint_to_checked_args: MintToCheckedLayout = MintToCheckedLayout::default();
     let mut initialize_mint2args: InitializeMint2Layout = InitializeMint2Layout::default();
-
 
     let (disc_bytes, rest) = bytes_stream.split_at(1);
     let discriminator: u8 = u8::from(disc_bytes[0]);
@@ -132,7 +130,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instru
             instruction_accounts.destination = accounts.get(1).unwrap().to_string();
             instruction_accounts.owner = accounts.get(2).unwrap().to_string();
             if accounts.len() > 3 {
-                instruction_accounts.signer_accounts = accounts.split_at(3).1.to_vec();
+                instruction_accounts.signer_accounts = accounts.split_at(3).1.iter().map(|x| x.to_string()).collect();
             }
 
             if rest.len() > 8 {
@@ -149,7 +147,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instru
             instruction_accounts.delegate = accounts.get(1).unwrap().to_string();
             instruction_accounts.owner = accounts.get(2).unwrap().to_string();
             if accounts.len() > 3 {
-                instruction_accounts.signer_accounts = accounts.split_at(3).1.to_vec();
+                instruction_accounts.signer_accounts = accounts.split_at(3).1.iter().map(|x| x.to_string()).collect();
             }
             if rest.len() > 8 {
                 let (rest_split, _) = rest.split_at(8);
@@ -166,7 +164,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instru
             instruction_accounts.account = accounts.get(1).unwrap().to_string();
             instruction_accounts.authority = accounts.get(2).unwrap().to_string();
             if accounts.len() > 3 {
-                instruction_accounts.signer_accounts = accounts.split_at(3).1.to_vec();
+                instruction_accounts.signer_accounts = accounts.split_at(3).1.iter().map(|x| x.to_string()).collect();
             }
 
             if rest.len() > 8 {
@@ -184,7 +182,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instru
             instruction_accounts.destination = accounts.get(2).unwrap().to_string();
             instruction_accounts.owner = accounts.get(3).unwrap().to_string();
             if accounts.len() > 4 {
-                instruction_accounts.signer_accounts = accounts.split_at(4).1.to_vec();
+                instruction_accounts.signer_accounts = accounts.split_at(4).1.iter().map(|x| x.to_string()).collect();
             }
 
             transfer_checked_args = TransferCheckedLayout::deserialize(&mut rest.clone()).unwrap();
@@ -197,7 +195,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instru
             instruction_accounts.delegate = accounts.get(2).unwrap().to_string();
             instruction_accounts.owner = accounts.get(3).unwrap().to_string();
             if accounts.len() > 4 {
-                instruction_accounts.signer_accounts = accounts.split_at(4).1.to_vec();
+                instruction_accounts.signer_accounts = accounts.split_at(4).1.iter().map(|x| x.to_string()).collect();
             }
 
             approve_checked_args = ApproveCheckedLayout::try_from_slice(rest).unwrap();
@@ -209,7 +207,7 @@ pub fn parse_instruction(bytes_stream: Vec<u8>, accounts: Vec<String>) -> Instru
             instruction_accounts.account = accounts.get(1).unwrap().to_string();
             instruction_accounts.authority = accounts.get(2).unwrap().to_string();
             if accounts.len() > 3 {
-                instruction_accounts.signer_accounts = accounts.split_at(3).1.to_vec();
+                instruction_accounts.signer_accounts = accounts.split_at(3).1.iter().map(|x| x.to_string()).collect();
             }
 
             mint_to_checked_args = MintToCheckedLayout::try_from_slice(rest).unwrap();
